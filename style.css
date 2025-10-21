@@ -1,0 +1,107 @@
+/* --- Bổ sung CSS cho các tính năng mới --- */
+
+/* Canh chỉnh cho ô nhập giá và các nút giá */
+.form-group-price {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.form-group-price input[type="number"] {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* Các nút chọn giá nhanh */
+.price-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.price-presets button {
+    padding: 8px 12px;
+    font-size: 0.9em;
+    font-weight: bold;
+    color: #333;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.price-presets button:hover {
+    background-color: #e0e0e0;
+}
+
+/* Nút "Thêm món" cho rõ ràng */
+.add-food-btn {
+    width: 100%;
+    padding: 12px;
+    font-size: 1.1em;
+}
+
+/* Canh chỉnh tiêu đề ngày và nút "Xóa ngày" */
+.day-title-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 5px;
+}
+
+.day-title-container h3 {
+    margin: 0;
+}
+
+/* Nút xóa ngày */
+.delete-day-btn {
+    padding: 5px 10px;
+    font-size: 0.8em;
+    color: #fff;
+    background-color: #dc3545; /* Màu đỏ */
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.delete-day-btn:hover {
+    background-color: #c82333;
+}
+
+/* Canh chỉnh từng món ăn và nút "x" */
+#daily-expenses ul li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f4f4f4;
+}
+
+/* Nút xóa món "x" */
+.delete-item-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    font-size: 0.9em;
+    font-weight: bold;
+    color: #dc3545;
+    background-color: #fdf2f2;
+    border: 1px solid #f5c6cb;
+    border-radius: 50%; /* Bo tròn */
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+    margin-left: 10px;
+}
+
+.delete-item-btn:hover {
+    background-color: #f8d7da;
+    color: #721c24;
+}

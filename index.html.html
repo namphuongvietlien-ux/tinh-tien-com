@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tính Tiền Cơm Trưa</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📝 Quản Lý Tiền Cơm Trưa Trong Tuần</h1>
+
+        <div class="card">
+            <h2>👤 Thêm người</h2>
+            <div class="form-group">
+                <input type="text" id="personName" placeholder="Nhập tên thành viên">
+                <button onclick="addPerson()">Thêm</button>
+            </div>
+            <h3>Danh sách thành viên:</h3>
+            <ul id="peopleList"></ul>
+        </div>
+
+        <div class="card">
+            <h2>🍛 Thêm món ăn</h2>
+            <div class="form-group">
+                <select id="daySelect">
+                    <option value="Thứ 2">Thứ 2</option>
+                    <option value="Thứ 3">Thứ 3</option>
+                    <option value="Thứ 4">Thứ 4</option>
+                    <option value="Thứ 5">Thứ 5</option>
+                    <option value="Thứ 6">Thứ 6</option>
+                    <option value="Thứ 7">Thứ 7</option>
+                    <option value="Chủ nhật">Chủ nhật</option>
+                </select>
+                <select id="personSelect">
+                    <option value="">-- Chọn người --</option>
+                </select>
+                <input type="text" id="foodItem" placeholder="Tên món ăn">
+            </div>
+            
+            <div class="form-group-price">
+                <input type="number" id="foodPrice" placeholder="Giá tiền (VNĐ)">
+                <div class="price-presets">
+                    <button onclick="setPrice(20000)">20k</button>
+                    <button onclick="setPrice(25000)">25k</button>
+                    <button onclick="setPrice(45000)">45k</button>
+                    <button onclick="setPrice(50000)">50k</button>
+                    <button onclick="setPrice(55000)">55k</button>
+                    <button onclick="setPrice(60000)">60k</button>
+                    <button onclick="setPrice(65000)">65k</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <button onclick="addFood()" class="add-food-btn">Thêm món</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📅 Chi tiêu theo ngày</h2>
+            <div id="daily-expenses"></div>
+        </div>
+
+        <div class="card summary">
+            <h2>📊 Tổng kết tuần</h2>
+            <table id="summaryTable">
+                <thead>
+                    <tr>
+                        <th>🧑 Tên</th>
+                        <th>🍱 Số suất</th>
+                        <th>💵 Tổng tiền (VNĐ)</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <p id="grandTotal" class="grand-total">Tổng chi phí cả tuần: 0 VNĐ</p>
+        </div>
+        
+        <div class="card qr-payment">
+            <h2>💰 Thanh toán</h2>
+            <p>Quét mã QR dưới đây để thanh toán tiền cơm:</p>
+            <img src="qr-code.jpg" alt="Mã QR thanh toán Techcombank" width="200">
+        </div>
+
+        <button id="clearData" onclick="clearAllData()">🗑️ Xóa toàn bộ dữ liệu</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
