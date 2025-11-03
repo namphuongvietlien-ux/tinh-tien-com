@@ -2,7 +2,7 @@
 const firebaseConfig = {
     apiKey: "AIzaSy...",
     authDomain: "comtruathuymoc-01060520.firebaseapp.com",
-    databaseURL: "https://comtruathuymoc-01060520-default-rtdb.firebaseio.com",
+    databaseURL: "https://comtruathuymoc-default-rtdb.firebaseio.com",
     projectId: "comtruathuymoc-01060520",
     storageBucket: "comtruathuymoc-01060520.appspot.com",
     messagingSenderId: "...",
@@ -425,3 +425,4 @@ function init() {
 
 // Chạy hàm init khi tải trang
 window.onload = init;
+
