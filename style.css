@@ -137,3 +137,35 @@
 .week-navigation button:hover {
     background-color: #0056b3;
 }
+/* Thêm vào cuối tệp style.css của bạn */
+
+.qr-total-btn {
+    width: 100%;
+    padding: 12px;
+    font-size: 1.1em;
+    font-weight: bold;
+    color: #fff;
+    background-color: #007bff; /* Màu xanh dương */
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-bottom: 15px;
+    transition: background-color 0.2s;
+}
+
+.qr-total-btn:hover {
+    background-color: #0056b3;
+}
+
+/* Căn giữa cột checkbox */
+#summaryTable th:first-child,
+#summaryTable td:first-child {
+    text-align: center;
+    width: 40px;
+}
+
+#summaryTable input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
