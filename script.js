@@ -7,8 +7,8 @@ const BASE_QR_URL = `https://img.vietqr.io/image/${BANK_BIN}-${ACCOUNT_NO}-${QR_
 
 // ==== DỮ LIỆU ====
 let allData = JSON.parse(localStorage.getItem('weeklyMealData')) || {};
-let currentWeekId = ''; 
-let viewingWeekId = ''; 
+let currentWeekId = ''; // ID của tuần hiện tại (ví dụ: "2025-11-03")
+let viewingWeekId = ''; // ID của tuần đang xem (có thể là tuần cũ)
 
 let people = [];
 let meals = [];
@@ -42,7 +42,7 @@ function getWeekRangeString(weekId) {
 }
 
 /**
- * (MỚI) Lấy chuỗi mã ngày cho nội dung CK (VD: "0311 09112025")
+ * Lấy chuỗi mã ngày cho nội dung CK (VD: "0311 09112025")
  * @param {string} weekId - ID của tuần (ngày T2, "YYYY-MM-DD")
  * @returns {string} - Chuỗi "DDMM DDMMYYYY"
  */
@@ -51,12 +51,10 @@ function getWeekDateCode(weekId) {
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
 
-    // Lấy DDMM của Thứ 2
     const monDay = monday.getDate().toString().padStart(2, '0');
     const monMonth = (monday.getMonth() + 1).toString().padStart(2, '0');
     const monCode = `${monDay}${monMonth}`;
 
-    // Lấy DDMMYYYY của Chủ Nhật
     const sunDay = sunday.getDate().toString().padStart(2, '0');
     const sunMonth = (sunday.getMonth() + 1).toString().padStart(2, '0');
     const sunYear = sunday.getFullYear();
@@ -66,10 +64,11 @@ function getWeekDateCode(weekId) {
 }
 
 
-// ==== HÀM CẬP NHẬT LOCAL STORAGE ====
+// ==== HÀM CẬP NHẬT LOCAL STORAGE (CẬP NHẬT) ====
 function saveData() {
-    if (viewingWeekId !== currentWeekId) return;
-    allData[currentWeekId] = { people, meals };
+    // THAY ĐỔI: Lưu vào tuần đang xem (viewingWeekId), không phải tuần hiện tại (currentWeekId)
+    // Bỏ kiểm tra if (viewingWeekId !== currentWeekId)
+    allData[viewingWeekId] = { people, meals };
     localStorage.setItem('weeklyMealData', JSON.stringify(allData));
 }
 
@@ -94,7 +93,7 @@ function handleWeekChange() {
     loadWeekData(newWeekId);
 }
 
-// ==== TẢI DỮ LIỆU TUẦN ====
+// ==== TẢI DỮ LIỆU TUẦN (CẬP NHẬT) ====
 function loadWeekData(weekId) {
     viewingWeekId = weekId;
     const weekData = allData[weekId] || { people: [], meals: [] };
@@ -109,45 +108,29 @@ function loadWeekData(weekId) {
 
     document.getElementById('qrPaymentImage').src = BASE_QR_URL;
 
-    const isCurrent = (weekId === currentWeekId);
-    toggleInputForms(isCurrent);
-
+    // THAY ĐỔI: Gỡ bỏ giới hạn. Luôn hiển thị các form nhập liệu
+    document.getElementById("addPersonCard").classList.remove('hidden');
+    document.getElementById("addMealCard").classList.remove('hidden');
+    
+    // THAY ĐỔI: Cập nhật lại nút xóa và thông báo
     const btn = document.getElementById("manageDataBtn");
     const notice = document.getElementById("weekNotice");
 
-    if (isCurrent) {
-        btn.textContent = "🗑️ Xóa dữ liệu tuần này";
-        btn.onclick = clearCurrentWeekData;
-        notice.textContent = "Bạn đang xem tuần hiện tại (Có thể sửa).";
-        notice.style.color = "green";
-    } else {
-        btn.textContent = "🗑️ Xóa dữ liệu tuần cũ này";
-        btn.onclick = deleteOldWeekData;
-        notice.textContent = "Bạn đang xem tuần cũ (Chế độ chỉ xem).";
-        notice.style.color = "red";
-    }
-}
-
-function toggleInputForms(isCurrent) {
-    const addPersonCard = document.getElementById("addPersonCard");
-    const addMealCard = document.getElementById("addMealCard");
+    btn.textContent = "🗑️ Xóa dữ liệu tuần này";
+    // Đổi hàm: clearCurrentWeekData/deleteOldWeekData -> clearSelectedWeekData
+    btn.onclick = clearSelectedWeekData; 
     
-    if (isCurrent) {
-        addPersonCard.classList.remove('hidden');
-        addMealCard.classList.remove('hidden');
-    } else {
-        addPersonCard.classList.add('hidden');
-        addMealCard.classList.add('hidden');
-    }
+    notice.textContent = `Bạn đang xem tuần: ${getWeekRangeString(weekId)}`;
+    // Vẫn tô màu xanh lá nếu là tuần hiện tại, màu xanh dương nếu là tuần cũ
+    notice.style.color = (weekId === currentWeekId) ? "green" : "blue";
 }
 
+// (XÓA BỎ) Hàm toggleInputForms(isCurrent) đã bị gỡ bỏ vì không cần nữa
 
-// ==== THÊM NGƯỜI ====
+
+// ==== THÊM NGƯỜI (CẬP NHẬT) ====
 function addPerson() {
-    if (viewingWeekId !== currentWeekId) {
-        alert("Chỉ có thể thêm người vào tuần hiện tại!");
-        return;
-    }
+    // THAY ĐỔI: Gỡ bỏ kiểm tra if (viewingWeekId !== currentWeekId)
     const nameInput = document.getElementById("personName");
     const name = nameInput.value.trim();
     if (!name) {
@@ -159,7 +142,7 @@ function addPerson() {
         return;
     }
     people.push(name);
-    saveData();
+    saveData(); // Sẽ lưu vào tuần đang chọn (viewingWeekId)
     nameInput.value = '';
     updatePeopleList();
     updatePersonSelect();
@@ -193,12 +176,9 @@ function setPrice(price) {
     document.getElementById("foodPrice").value = price;
 }
 
-// ==== THÊM MÓN ĂN ====
+// ==== THÊM MÓN ĂN (CẬP NHẬT) ====
 function addFood() {
-    if (viewingWeekId !== currentWeekId) {
-        alert("Chỉ có thể thêm món vào tuần hiện tại!");
-        return;
-    }
+    // THAY ĐỔI: Gỡ bỏ kiểm tra if (viewingWeekId !== currentWeekId)
     const day = document.getElementById("daySelect").value;
     const person = document.getElementById("personSelect").value;
     const food = document.getElementById("foodItem").value.trim();
@@ -209,7 +189,7 @@ function addFood() {
         return;
     }
     meals.push({ id: Date.now(), day, person, food, price });
-    saveData();
+    saveData(); // Sẽ lưu vào tuần đang chọn (viewingWeekId)
     clearFoodInputs();
     updateDailyExpenses();
     updateSummary();
@@ -220,7 +200,7 @@ function clearFoodInputs() {
     document.getElementById("foodPrice").value = '';
 }
 
-// ==== HIỂN THỊ CHI TIÊU THEO NGÀY ====
+// ==== HIỂN THỊ CHI TIÊU THEO NGÀY (CẬP NHẬT) ====
 function updateDailyExpenses() {
     const container = document.getElementById("daily-expenses");
     container.innerHTML = '';
@@ -240,13 +220,15 @@ function updateDailyExpenses() {
             const title = document.createElement("h3");
             title.textContent = `📅 ${day}`;
             titleContainer.appendChild(title);
-            if (viewingWeekId === currentWeekId) {
-                const deleteDayBtn = document.createElement("button");
-                deleteDayBtn.textContent = "Xóa ngày";
-                deleteDayBtn.classList.add("delete-day-btn");
-                deleteDayBtn.onclick = () => deleteDay(day);
-                titleContainer.appendChild(deleteDayBtn);
-            }
+            
+            // THAY ĐỔI: Gỡ bỏ kiểm tra if (viewingWeekId === currentWeekId)
+            // Luôn hiển thị nút "Xóa ngày"
+            const deleteDayBtn = document.createElement("button");
+            deleteDayBtn.textContent = "Xóa ngày";
+            deleteDayBtn.classList.add("delete-day-btn");
+            deleteDayBtn.onclick = () => deleteDay(day);
+            titleContainer.appendChild(deleteDayBtn);
+            
             section.appendChild(titleContainer);
             const ul = document.createElement("ul");
             grouped[day].forEach(item => {
@@ -254,13 +236,15 @@ function updateDailyExpenses() {
                 const text = document.createElement("span");
                 text.textContent = `${item.person} ăn ${item.food} - ${item.price.toLocaleString()} VNĐ `;
                 li.appendChild(text);
-                if (viewingWeekId === currentWeekId) {
-                    const deleteItemBtn = document.createElement("button");
-                    deleteItemBtn.textContent = "x";
-                    deleteItemBtn.classList.add("delete-item-btn");
-                    deleteItemBtn.onclick = () => deleteMealItem(item.id);
-                    li.appendChild(deleteItemBtn);
-                }
+                
+                // THAY ĐỔI: Gỡ bỏ kiểm tra if (viewingWeekId === currentWeekId)
+                // Luôn hiển thị nút "x" (xóa món)
+                const deleteItemBtn = document.createElement("button");
+                deleteItemBtn.textContent = "x";
+                deleteItemBtn.classList.add("delete-item-btn");
+                deleteItemBtn.onclick = () => deleteMealItem(item.id);
+                li.appendChild(deleteItemBtn);
+                
                 ul.appendChild(li);
             });
             section.appendChild(ul);
@@ -269,9 +253,9 @@ function updateDailyExpenses() {
     });
 }
 
-// ==== HÀM XÓA ====
+// ==== HÀM XÓA (CẬP NHẬT) ====
 function deleteMealItem(mealId) {
-    if (viewingWeekId !== currentWeekId) return; 
+    // THAY ĐỔI: Gỡ bỏ kiểm tra if (viewingWeekId !== currentWeekId)
     if (confirm("Bạn có chắc muốn xóa món ăn này?")) {
         meals = meals.filter(item => item.id !== mealId);
         saveData();
@@ -281,7 +265,7 @@ function deleteMealItem(mealId) {
 }
 
 function deleteDay(dayName) {
-    if (viewingWeekId !== currentWeekId) return; 
+    // THAY ĐỔI: Gỡ bỏ kiểm tra if (viewingWeekId !== currentWeekId)
     if (confirm(`Bạn có chắc muốn xóa toàn bộ dữ liệu của ${dayName}?`)) {
         meals = meals.filter(item => item.day !== dayName);
         saveData();
@@ -332,34 +316,21 @@ function updateSummary() {
     document.getElementById("grandTotal").textContent = `Tổng chi phí cả tuần: ${grandTotal.toLocaleString()} VNĐ`;
 }
 
-// ==== CÁC HÀM XỬ LÝ QR (CẬP NHẬT) ====
-
-/**
- * Tạo mã QR cho TỔNG TIỀN của tuần
- */
+// ==== CÁC HÀM XỬ LÝ QR ====
 function generateTotalWeekQR() {
     document.querySelectorAll('.person-qr-check').forEach(cb => cb.checked = false);
-
-    // (ĐÃ THAY ĐỔI) Dùng hàm mới để lấy mã ngày
     const dateCode = getWeekDateCode(viewingWeekId); 
-    const message = encodeURIComponent(`Tong com tu ${dateCode}`); // Nội dung mới
-    
+    const message = encodeURIComponent(`Tong com tu ${dateCode}`);
     const qrUrl = `${BASE_QR_URL}?amount=${currentGrandTotal}&addInfo=${message}`;
     document.getElementById('qrPaymentImage').src = qrUrl;
 }
 
-/**
- * Xử lý khi tick vào checkbox của một người
- * @param {HTMLInputElement} checkbox - Hộp checkbox được tick
- */
 function handlePersonQRCheck(checkbox) {
     const qrImage = document.getElementById('qrPaymentImage');
-
     if (!checkbox.checked) {
         qrImage.src = BASE_QR_URL;
         return;
     }
-
     document.querySelectorAll('.person-qr-check').forEach(cb => {
         if (cb !== checkbox) {
             cb.checked = false;
@@ -368,34 +339,29 @@ function handlePersonQRCheck(checkbox) {
 
     const name = checkbox.dataset.name;
     const amount = checkbox.dataset.amount;
-    
-    // (ĐÃ THAY ĐỔI) Dùng hàm mới để lấy mã ngày
-    const dateCode = getWeekDateCode(viewingWeekId); // Lấy mã "0311 09112025"
-    const message = encodeURIComponent(`${name} tu ${dateCode}`); // Nội dung mới
-    
+    const dateCode = getWeekDateCode(viewingWeekId); 
+    const message = encodeURIComponent(`${name} tu ${dateCode}`);
     const qrUrl = `${BASE_QR_URL}?amount=${amount}&addInfo=${message}`;
-    
     qrImage.src = qrUrl;
 }
 
 
-// ==== XÓA DỮ LIỆU ====
-function clearCurrentWeekData() {
-    if (confirm("Bạn có chắc chắn muốn xóa toàn bộ dữ liệu của TUẦN NÀY?")) {
+// ==== XÓA DỮ LIỆU (CẬP NHẬT) ====
+
+// Đổi tên hàm thành 'clearSelectedWeekData'
+function clearSelectedWeekData() {
+    const weekName = getWeekRangeString(viewingWeekId);
+    if (confirm(`Bạn có chắc chắn muốn xóa toàn bộ dữ liệu (người và món) của tuần ${weekName}?`)) {
         people = [];
         meals = [];
-        saveData(); 
-        loadWeekData(currentWeekId); 
+        saveData(); // Lưu lại mảng rỗng cho tuần đang xem
+        loadWeekData(viewingWeekId); // Tải lại UI
     }
 }
 
-function deleteOldWeekData() {
-    if (confirm(`Bạn có chắc chắn muốn XÓA VĨNH VIỄN dữ liệu của tuần ${getWeekRangeString(viewingWeekId)}?`)) {
-        delete allData[viewingWeekId]; 
-        localStorage.setItem('weeklyMealData', JSON.stringify(allData)); 
-        init();
-    }
-}
+// Gộp hàm deleteOldWeekData vào hàm trên (đơn giản hóa)
+// Giờ đây nút "Xóa" chỉ xóa nội dung tuần, không xóa tuần khỏi danh sách.
+
 
 // ==== KHỞI ĐỘNG TRANG ====
 function init() {
