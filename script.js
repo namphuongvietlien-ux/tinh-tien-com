@@ -1,4 +1,4 @@
-// ==== BƯỚC 1: DÁN FIREBASE CONFIG CỦA BẠN VÀO ĐÂY ====
+// ==== BƯỚC 1: NHỚ DÁN FIREBASE CONFIG CỦA BẠN VÀO ĐÂY ====
 const firebaseConfig = {
     apiKey: "AIzaSy...", // DÁN KEY CỦA BẠN VÀO
     authDomain: "comtruathuymoc-01060520.firebaseapp.com",
@@ -22,7 +22,7 @@ const BASE_QR_URL = `https://img.vietqr.io/image/${BANK_BIN}-${ACCOUNT_NO}-${QR_
 
 
 // ==== DỮ LIỆU ====
-let allData = {}; 
+let allData = {}; // Sẽ chứa TOÀN BỘ dữ liệu từ Firebase
 let currentWeekId = ''; 
 let viewingWeekId = ''; 
 
@@ -30,9 +30,8 @@ let people = [];
 let meals = [];
 let currentGrandTotal = 0; 
 
-// ==== (SỬA LỖI) Biến lưu trữ "tai nghe" Firebase ====
-let currentWeekListener = null; // Lưu trữ hàm callback
-let currentWeekRef = null; // (MỚI) Lưu trữ đường dẫn (ref)
+let currentWeekListener = null; 
+let currentWeekRef = null; 
 
 // ==== HÀM LẤY ID TUẦN ====
 function getWeekId(date) {
@@ -103,22 +102,20 @@ function handleWeekChange() {
     loadWeekData(newWeekId);
 }
 
-// ==== TẢI DỮ LIỆU TUẦN (ĐÃ SỬA LỖI) ====
+// ==== TẢI DỮ LIỆU TUẦN ====
 function loadWeekData(weekId) {
     viewingWeekId = weekId;
 
-    // 1. (SỬA LỖI) Tắt "tai nghe" của tuần cũ (nếu có)
     if (currentWeekListener && currentWeekRef) {
-        currentWeekRef.off('value', currentWeekListener); // Cú pháp đúng cho v8
+        currentWeekRef.off('value', currentWeekListener); 
     }
 
-    // 2. Tạo một "tai nghe" mới cho tuần đã chọn
-    currentWeekRef = database.ref(`weeks/${viewingWeekId}`); // (SỬA) Gán vào biến toàn cục
-    currentWeekListener = currentWeekRef.on('value', (snapshot) => { // (SỬA) Gán vào biến toàn cục
+    currentWeekRef = database.ref(`weeks/${viewingWeekId}`); 
+    currentWeekListener = currentWeekRef.on('value', (snapshot) => { 
         const weekData = snapshot.val() || { people: [], meals: [] };
         
-        people = weekData.people || allData[viewingWeekId].people || [];
-        meals = weekData.meals || allData[viewingWeekId].meals || [];
+        people = weekData.people || allData[viewingWeekId]?.people || [];
+        meals = weekData.meals || allData[viewingWeekId]?.meals || [];
 
         updatePeopleList();
         updatePersonSelect();
@@ -156,7 +153,7 @@ function addPerson() {
 function updatePeopleList() {
     const ul = document.getElementById("peopleList");
     ul.innerHTML = '';
-    (people || []).forEach(name => { // Thêm an toàn
+    (people || []).forEach(name => { 
         const li = document.createElement("li");
         li.textContent = name;
         ul.appendChild(li);
@@ -166,7 +163,7 @@ function updatePeopleList() {
 function updatePersonSelect() {
     const select = document.getElementById("personSelect");
     select.innerHTML = '<option value="">-- Chọn người --</option>';
-    (people || []).forEach(name => { // Thêm an toàn
+    (people || []).forEach(name => { 
         const option = document.createElement("option");
         option.value = name;
         option.textContent = name;
@@ -188,6 +185,7 @@ function addFood() {
     if (!person || !food || isNaN(price) || price <= 0) {
         alert("Vui lòng nhập đầy đủ và chính xác thông tin món ăn."); return;
     }
+    if (!meals) meals = []; // Khởi tạo nếu 'meals' là null
     meals.push({ id: Date.now(), day, person, food, price });
     syncDataToFirebase(); 
     clearFoodInputs();
@@ -257,7 +255,7 @@ function deleteDay(dayName) {
     }
 }
 
-// ==== TỔNG KẾT ====
+// ==== TỔNG KẾT TUẦN ====
 function updateSummary() {
     const tbody = document.querySelector("#summaryTable tbody");
     tbody.innerHTML = '';
@@ -293,6 +291,71 @@ function updateSummary() {
     currentGrandTotal = grandTotal; 
     document.getElementById("grandTotal").textContent = `Tổng chi phí cả tuần: ${grandTotal.toLocaleString()} VNĐ`;
 }
+
+
+// ==== (HÀM MỚI) TỔNG KẾT THEO THỜI GIAN ====
+function generateRangeSummary() {
+    const startDate = new Date(document.getElementById('startDate').value + 'T00:00:00');
+    const endDate = new Date(document.getElementById('endDate').value + 'T23:59:59');
+
+    if (isNaN(startDate) || isNaN(endDate)) {
+        alert("Vui lòng chọn ngày bắt đầu và kết thúc hợp lệ.");
+        return;
+    }
+
+    const totalSummary = {};
+    let rangeGrandTotal = 0;
+
+    // Lấy tất cả người dùng từ TẤT CẢ các tuần để tạo danh sách đầy đủ
+    const allPeopleSet = new Set();
+    Object.values(allData).forEach(week => {
+        (week.people || []).forEach(person => allPeopleSet.add(person));
+    });
+    const allPeopleList = Array.from(allPeopleSet);
+    allPeopleList.forEach(person => {
+        totalSummary[person] = 0; // Khởi tạo tất cả = 0
+    });
+
+    // Lặp qua allData (đã tải về lúc init)
+    for (const weekId in allData) {
+        const weekDate = new Date(weekId + 'T00:00:00');
+
+        // Kiểm tra xem tuần này có nằm trong phạm vi ngày đã chọn không
+        if (weekDate >= startDate && weekDate <= endDate) {
+            const weekData = allData[weekId];
+            
+            // Lặp qua các bữa ăn của tuần đó
+            (weekData.meals || []).forEach(meal => {
+                if (totalSummary[meal.person] !== undefined) {
+                    totalSummary[meal.person] += meal.price;
+                }
+                // Nếu người ăn không có trong danh sách (vd: người cũ), ta vẫn cộng vào
+                else {
+                     totalSummary[meal.person] = meal.price;
+                }
+                rangeGrandTotal += meal.price;
+            });
+        }
+    }
+
+    // Hiển thị kết quả lên bảng
+    const tbody = document.querySelector("#rangeSummaryTable tbody");
+    tbody.innerHTML = '';
+
+    for (const person in totalSummary) {
+        const total = totalSummary[person];
+        const row = document.createElement("tr");
+        row.innerHTML = `
+            <td>${person}</td>
+            <td>${total.toLocaleString()} VNĐ</td>
+        `;
+        tbody.appendChild(row);
+    }
+    
+    // Cập nhật tổng cộng
+    document.getElementById("rangeGrandTotal").textContent = `${rangeGrandTotal.toLocaleString()} VNĐ`;
+}
+
 
 // ==== CÁC HÀM XỬ LÝ QR ====
 function generateTotalWeekQR() {
@@ -332,15 +395,18 @@ function clearSelectedWeekData() {
     }
 }
 
-// ==== KHỞI ĐỘNG TRANG ====
+// ==== KHỞI ĐỘNG TRANG (CẬP NHẬT) ====
 function init() {
     currentWeekId = getWeekId(new Date());
     viewingWeekId = currentWeekId; 
     document.getElementById('qrPaymentImage').src = BASE_QR_URL;
+
     const allWeeksRef = database.ref('weeks');
     allWeeksRef.once('value', (snapshot) => {
         const existingWeeks = snapshot.val() || {};
-        allData = existingWeeks;
+        allData = existingWeeks; // Gán TOÀN BỘ dữ liệu vào biến toàn cục
+
+        // Tạo các tuần ảo (trước, này, sau)
         if (!allData[currentWeekId]) {
             allData[currentWeekId] = { people: [], meals: [] };
         }
@@ -356,6 +422,8 @@ function init() {
         if (!allData[nextWeekId]) {
             allData[nextWeekId] = { people: [], meals: [] };
         }
+
+        // Sao chép 'people' cho tuần hiện tại (nếu nó MỚI TINH)
         if (!existingWeeks[currentWeekId]) { 
             const sortedWeeks = Object.keys(existingWeeks).sort().reverse();
             let lastWeekPeople = [];
@@ -365,8 +433,19 @@ function init() {
             allData[currentWeekId].people = lastWeekPeople;
             database.ref(`weeks/${currentWeekId}`).set(allData[currentWeekId]);
         }
+        
+        // Tải dữ liệu tuần hiện tại
         loadWeekData(currentWeekId);
+        
+        // (MỚI) Đặt ngày mặc định cho bộ lọc
+        const today = new Date().toISOString().split('T')[0];
+        const sortedWeekIds = Object.keys(existingWeeks).sort(); // Sắp xếp để tìm tuần cũ nhất
+        const oldestWeek = sortedWeekIds.length > 0 ? sortedWeekIds[0] : today;
+
+        document.getElementById('startDate').value = oldestWeek;
+        document.getElementById('endDate').value = today;
     });
 }
 
+// Chạy hàm init khi tải trang
 window.onload = init;
