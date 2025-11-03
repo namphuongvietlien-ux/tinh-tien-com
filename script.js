@@ -1,10 +1,7 @@
-// ==== THÔNG TIN TÀI KHOẢN NGÂN HÀNG (MỚI) ====
-// Lấy từ mã QR bạn cung cấp: Techcombank, 19027952512028
+// ==== THÔNG TIN TÀI KHOẢN NGÂN HÀNG ====
 const BANK_BIN = '970407'; // Mã BIN của Techcombank
 const ACCOUNT_NO = '19027952512028'; // Số tài khoản của bạn
 const QR_TEMPLATE = 'print'; // Mẫu QR ('print' hoặc 'compact2')
-
-// URL cơ bản của VietQR API
 const BASE_QR_URL = `https://img.vietqr.io/image/${BANK_BIN}-${ACCOUNT_NO}-${QR_TEMPLATE}.png`;
 
 
@@ -15,7 +12,7 @@ let viewingWeekId = '';
 
 let people = [];
 let meals = [];
-let currentGrandTotal = 0; // (MỚI) Biến lưu tổng tiền của tuần đang xem
+let currentGrandTotal = 0; 
 
 // ==== HÀM LẤY ID TUẦN ====
 function getWeekId(date) {
@@ -42,6 +39,30 @@ function getWeekRangeString(weekId) {
     const sunMonth = (sunday.getMonth() + 1).toString().padStart(2, '0');
     const sunYear = sunday.getFullYear();
     return `${monDay}/${monMonth} - ${sunDay}/${sunMonth}/${sunYear}`;
+}
+
+/**
+ * (MỚI) Lấy chuỗi mã ngày cho nội dung CK (VD: "0311 09112025")
+ * @param {string} weekId - ID của tuần (ngày T2, "YYYY-MM-DD")
+ * @returns {string} - Chuỗi "DDMM DDMMYYYY"
+ */
+function getWeekDateCode(weekId) {
+    const monday = new Date(weekId + 'T00:00:00');
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+
+    // Lấy DDMM của Thứ 2
+    const monDay = monday.getDate().toString().padStart(2, '0');
+    const monMonth = (monday.getMonth() + 1).toString().padStart(2, '0');
+    const monCode = `${monDay}${monMonth}`;
+
+    // Lấy DDMMYYYY của Chủ Nhật
+    const sunDay = sunday.getDate().toString().padStart(2, '0');
+    const sunMonth = (sunday.getMonth() + 1).toString().padStart(2, '0');
+    const sunYear = sunday.getFullYear();
+    const sunCode = `${sunDay}${sunMonth}${sunYear}`;
+
+    return `${monCode} ${sunCode}`;
 }
 
 
@@ -73,7 +94,7 @@ function handleWeekChange() {
     loadWeekData(newWeekId);
 }
 
-// ==== TẢI DỮ LIỆU TUẦN (CẬP NHẬT) ====
+// ==== TẢI DỮ LIỆU TUẦN ====
 function loadWeekData(weekId) {
     viewingWeekId = weekId;
     const weekData = allData[weekId] || { people: [], meals: [] };
@@ -86,7 +107,6 @@ function loadWeekData(weekId) {
     updateDailyExpenses();
     updateSummary(); 
 
-    // (MỚI) Reset mã QR về mặc định khi đổi tuần
     document.getElementById('qrPaymentImage').src = BASE_QR_URL;
 
     const isCurrent = (weekId === currentWeekId);
@@ -270,7 +290,7 @@ function deleteDay(dayName) {
     }
 }
 
-// ==== TỔNG KẾT (CẬP NHẬT) ====
+// ==== TỔNG KẾT ====
 function updateSummary() {
     const tbody = document.querySelector("#summaryTable tbody");
     tbody.innerHTML = '';
@@ -292,7 +312,6 @@ function updateSummary() {
         const total = summary[person]?.total || 0;
         grandTotal += total;
 
-        // (MỚI) Thêm checkbox vào hàng
         row.innerHTML = `
             <td>
                 <input 
@@ -309,22 +328,21 @@ function updateSummary() {
         tbody.appendChild(row);
     });
 
-    currentGrandTotal = grandTotal; // (MỚI) Lưu tổng tiền vào biến toàn cục
+    currentGrandTotal = grandTotal; 
     document.getElementById("grandTotal").textContent = `Tổng chi phí cả tuần: ${grandTotal.toLocaleString()} VNĐ`;
 }
 
-// ==== CÁC HÀM XỬ LÝ QR (MỚI) ====
+// ==== CÁC HÀM XỬ LÝ QR (CẬP NHẬT) ====
 
 /**
  * Tạo mã QR cho TỔNG TIỀN của tuần
  */
 function generateTotalWeekQR() {
-    // Bỏ check tất cả các checkbox
     document.querySelectorAll('.person-qr-check').forEach(cb => cb.checked = false);
 
-    const weekStr = getWeekRangeString(viewingWeekId);
-    // encodeURIComponent để mã hóa dấu cách, dấu / thành %20, %2F
-    const message = encodeURIComponent(` tu ${weekStr}`);
+    // (ĐÃ THAY ĐỔI) Dùng hàm mới để lấy mã ngày
+    const dateCode = getWeekDateCode(viewingWeekId); 
+    const message = encodeURIComponent(`Tong com tu ${dateCode}`); // Nội dung mới
     
     const qrUrl = `${BASE_QR_URL}?amount=${currentGrandTotal}&addInfo=${message}`;
     document.getElementById('qrPaymentImage').src = qrUrl;
@@ -337,25 +355,24 @@ function generateTotalWeekQR() {
 function handlePersonQRCheck(checkbox) {
     const qrImage = document.getElementById('qrPaymentImage');
 
-    // Nếu bỏ tick, reset về QR mặc định
     if (!checkbox.checked) {
         qrImage.src = BASE_QR_URL;
         return;
     }
 
-    // Nếu tick, bỏ tick tất cả những người khác (chỉ cho chọn 1)
     document.querySelectorAll('.person-qr-check').forEach(cb => {
         if (cb !== checkbox) {
             cb.checked = false;
         }
     });
 
-    // Lấy dữ liệu từ data attributes
     const name = checkbox.dataset.name;
     const amount = checkbox.dataset.amount;
-    const weekStr = getWeekRangeString(viewingWeekId);
     
-    const message = encodeURIComponent(`${name} tu ${weekStr}`);
+    // (ĐÃ THAY ĐỔI) Dùng hàm mới để lấy mã ngày
+    const dateCode = getWeekDateCode(viewingWeekId); // Lấy mã "0311 09112025"
+    const message = encodeURIComponent(`${name} tu ${dateCode}`); // Nội dung mới
+    
     const qrUrl = `${BASE_QR_URL}?amount=${amount}&addInfo=${message}`;
     
     qrImage.src = qrUrl;
@@ -380,7 +397,7 @@ function deleteOldWeekData() {
     }
 }
 
-// ==== KHỞI ĐỘNG TRANG (CẬP NHẬT) ====
+// ==== KHỞI ĐỘNG TRANG ====
 function init() {
     currentWeekId = getWeekId(new Date());
     viewingWeekId = currentWeekId; 
@@ -395,13 +412,9 @@ function init() {
     }
 
     populateWeekPicker();
-    loadWeekData(currentWeekId); // Tải dữ liệu tuần hiện tại
+    loadWeekData(currentWeekId); 
 
-    // (MỚI) Đặt mã QR mặc định khi tải trang
     document.getElementById('qrPaymentImage').src = BASE_QR_URL;
 }
 
 window.onload = init;
-
-
-
