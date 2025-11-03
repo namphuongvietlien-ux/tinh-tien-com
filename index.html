@@ -8,8 +8,13 @@
 </head>
 <body>
     <div class="container">
-        <h1>📝 Quản Lý Tiền Cơm Trưa Trong Tuần</h1>
+        <h1>📝 Quản Lý Tiền Cơm Trưa</h1>
 
+        <div class="card week-navigation">
+            <button onclick="changeWeek(-1)">&lt; Tuần trước</button>
+            <h2 id="currentWeekDisplay"></h2>
+            <button onclick="changeWeek(1)">Tuần sau &gt;</button>
+        </div>
         <div class="card">
             <h2>👤 Thêm người</h2>
             <div class="form-group">
@@ -50,6 +55,7 @@
                     <button onclick="setPrice(65000)">65k</button>
                 </div>
             </div>
+
             <div class="form-group">
                 <button onclick="addFood()" class="add-food-btn">Thêm món</button>
             </div>
