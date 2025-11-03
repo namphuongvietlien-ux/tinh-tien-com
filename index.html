@@ -68,7 +68,40 @@
             <h2>📅 Chi tiêu theo ngày</h2>
             <div id="daily-expenses"></div>
         </div>
-
+<div class="card" id="rangeSummaryCard">
+            <h2>📈 Tổng kết theo Thời gian</h2>
+            <div class="form-group" style="gap: 10px;">
+                <div class="date-picker-group">
+                    <label for="startDate">Từ ngày:</label>
+                    <input type="date" id="startDate">
+                </div>
+                <div class="date-picker-group">
+                    <label for="endDate">Đến ngày:</label>
+                    <input type="date" id="endDate">
+                </div>
+            </div>
+            <button onclick="generateRangeSummary()" class="qr-total-btn" style="margin-bottom: 15px;">📊 Xem Thống Kê</button>
+            
+            <table id="rangeSummaryTable">
+                <thead>
+                    <tr>
+                        <th>🧑 Tên</th>
+                        <th>💵 Tổng chi (VNĐ)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+                <tfoot>
+                    <tr id="rangeGrandTotalRow">
+                        <td><strong>TỔNG CỘNG</strong></td>
+                        <td><strong id="rangeGrandTotal">0 VNĐ</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <div class="card qr-payment">
+            ...
+        </div>
         <div class="card summary">
             <h2>📊 Tổng kết tuần</h2>
             <table id="summaryTable">
@@ -107,4 +140,5 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
