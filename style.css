@@ -169,3 +169,50 @@
     height: 18px;
     cursor: pointer;
 }
+/* --- Bổ sung CSS cho Bảng Tổng Kết Thời Gian --- */
+
+.date-picker-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex-grow: 1;
+}
+
+.date-picker-group label {
+    font-size: 0.9em;
+    font-weight: 600;
+    color: #555;
+}
+
+.date-picker-group input[type="date"] {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1em;
+}
+
+#rangeSummaryTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+#rangeSummaryTable th,
+#rangeSummaryTable td {
+    border: 1px solid #eee;
+    padding: 10px 12px;
+    text-align: left;
+}
+
+#rangeSummaryTable th {
+    background-color: #f8f9fa;
+}
+
+#rangeSummaryTable tbody tr:nth-child(odd) {
+    background-color: #fdfdfd;
+}
+
+#rangeSummaryTable tfoot tr {
+    background-color: #f8f9fa;
+    border-top: 2px solid #dee2e6;
+}
