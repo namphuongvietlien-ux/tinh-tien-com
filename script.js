@@ -22,7 +22,7 @@ const BASE_QR_URL = `https://img.vietqr.io/image/${BANK_BIN}-${ACCOUNT_NO}-${QR_
 
 
 // ==== DỮ LIỆU ====
-let allData = {}; // Thay thế cho localStorage, sẽ được tải từ Firebase
+let allData = {}; // Sẽ được tải từ Firebase
 let currentWeekId = ''; 
 let viewingWeekId = ''; 
 
@@ -72,9 +72,10 @@ function getWeekDateCode(weekId) {
 }
 
 
-// ==== HÀM CẬP NHẬT FIREBASE (THAY THẾ SAVEDATA) ====
+// ==== HÀM CẬP NHẬT FIREBASE ====
 function syncDataToFirebase() {
-    // Chỉ lưu 'people' và 'meals' vào tuần đang xem
+    // Lưu 'people' và 'meals' vào tuần đang xem (viewingWeekId)
+    // Nếu tuần này chưa có trên Firebase, nó sẽ tự động được tạo
     const ref = database.ref(`weeks/${viewingWeekId}`);
     ref.set({
         people: people,
@@ -87,13 +88,10 @@ function populateWeekPicker() {
     const weekPicker = document.getElementById("weekPicker");
     weekPicker.innerHTML = '';
     
-    // Lấy ID các tuần từ 'allData'
+    // Lấy ID các tuần từ 'allData' (giờ đã bao gồm các tuần ảo)
     const sortedWeeks = Object.keys(allData).sort().reverse();
 
-    // Đảm bảo tuần hiện tại luôn có trong danh sách
-    if (!sortedWeeks.includes(currentWeekId)) {
-        sortedWeeks.unshift(currentWeekId); 
-    }
+    // Lô-gic 'if' đã bị xóa vì 'allData' giờ luôn chứa 'currentWeekId'
 
     sortedWeeks.forEach(weekId => {
         const option = document.createElement("option");
@@ -110,7 +108,7 @@ function handleWeekChange() {
     loadWeekData(newWeekId);
 }
 
-// ==== TẢI DỮ LIỆU TUẦN (VIẾT LẠI HOÀN TOÀN) ====
+// ==== TẢI DỮ LIỆU TUẦN ====
 function loadWeekData(weekId) {
     viewingWeekId = weekId;
 
@@ -122,12 +120,11 @@ function loadWeekData(weekId) {
     // 2. Tạo một "tai nghe" mới cho tuần đã chọn
     const weekRef = database.ref(`weeks/${viewingWeekId}`);
     currentWeekListener = weekRef.on('value', (snapshot) => {
-        // Đây là hàm sẽ tự động chạy MỖI KHI dữ liệu trên Firebase thay đổi
         const weekData = snapshot.val() || { people: [], meals: [] };
-
-        // 3. Cập nhật biến tạm
-        people = weekData.people || [];
-        meals = weekData.meals || [];
+        
+        // 3. Cập nhật biến tạm (lấy từ 'allData' nếu là tuần ảo chưa có trên FB)
+        people = weekData.people || allData[viewingWeekId].people || [];
+        meals = weekData.meals || allData[viewingWeekId].meals || [];
 
         // 4. Vẽ lại toàn bộ giao diện
         updatePeopleList();
@@ -154,7 +151,7 @@ function loadWeekData(weekId) {
 }
 
 
-// ==== THÊM NGƯỜI (CẬP NHẬT) ====
+// ==== THÊM NGƯỜI ====
 function addPerson() {
     const nameInput = document.getElementById("personName");
     const name = nameInput.value.trim();
@@ -171,7 +168,6 @@ function addPerson() {
     syncDataToFirebase(); // Đẩy mảng 'people' mới lên Firebase
     
     nameInput.value = '';
-    // Giao diện sẽ tự động cập nhật vì 'currentWeekListener'
 }
 
 // ==== CẬP NHẬT DANH SÁCH NGƯỜI ====
@@ -201,7 +197,7 @@ function setPrice(price) {
     document.getElementById("foodPrice").value = price;
 }
 
-// ==== THÊM MÓN ĂN (CẬP NHẬT) ====
+// ==== THÊM MÓN ĂN ====
 function addFood() {
     const day = document.getElementById("daySelect").value;
     const person = document.getElementById("personSelect").value;
@@ -213,12 +209,10 @@ function addFood() {
         return;
     }
     
-    // Thêm ID duy nhất (Firebase cũng có thể làm việc này, nhưng ta tự làm cho dễ)
     meals.push({ id: Date.now(), day, person, food, price });
     syncDataToFirebase(); // Đẩy mảng 'meals' mới lên Firebase
     
     clearFoodInputs();
-    // Giao diện sẽ tự động cập nhật
 }
 
 function clearFoodInputs() {
@@ -231,7 +225,7 @@ function updateDailyExpenses() {
     const container = document.getElementById("daily-expenses");
     container.innerHTML = '';
     const grouped = {};
-    (meals || []).forEach(item => { // Thêm (meals || []) để tránh lỗi khi meals=null
+    (meals || []).forEach(item => { 
         if (!grouped[item.day]) grouped[item.day] = [];
         grouped[item.day].push(item);
     });
@@ -275,18 +269,18 @@ function updateDailyExpenses() {
     });
 }
 
-// ==== HÀM XÓA (CẬP NHẬT) ====
+// ==== HÀM XÓA ====
 function deleteMealItem(mealId) {
     if (confirm("Bạn có chắc muốn xóa món ăn này?")) {
         meals = meals.filter(item => item.id !== mealId);
-        syncDataToFirebase(); // Đẩy mảng 'meals' đã lọc lên Firebase
+        syncDataToFirebase(); 
     }
 }
 
 function deleteDay(dayName) {
     if (confirm(`Bạn có chắc muốn xóa toàn bộ dữ liệu của ${dayName}?`)) {
         meals = meals.filter(item => item.day !== dayName);
-        syncDataToFirebase(); // Đẩy mảng 'meals' đã lọc lên Firebase
+        syncDataToFirebase(); 
     }
 }
 
@@ -296,7 +290,7 @@ function updateSummary() {
     tbody.innerHTML = '';
     const summary = {};
 
-    (meals || []).forEach(item => { // Thêm (meals || []) để tránh lỗi
+    (meals || []).forEach(item => { 
         if (!summary[item.person]) {
             summary[item.person] = { count: 0, total: 0 };
         }
@@ -306,7 +300,7 @@ function updateSummary() {
 
     let grandTotal = 0;
 
-    (people || []).forEach(person => { // Thêm (people || []) để tránh lỗi
+    (people || []).forEach(person => { 
         const row = document.createElement("tr");
         const count = summary[person]?.count || 0;
         const total = summary[person]?.total || 0;
@@ -332,7 +326,7 @@ function updateSummary() {
     document.getElementById("grandTotal").textContent = `Tổng chi phí cả tuần: ${grandTotal.toLocaleString()} VNĐ`;
 }
 
-// ==== CÁC HÀM XỬ LÝ QR (Không đổi) ====
+// ==== CÁC HÀM XỬ LÝ QR ====
 function generateTotalWeekQR() {
     document.querySelectorAll('.person-qr-check').forEach(cb => cb.checked = false);
     const dateCode = getWeekDateCode(viewingWeekId); 
@@ -362,17 +356,17 @@ function handlePersonQRCheck(checkbox) {
 }
 
 
-// ==== XÓA DỮ LIỆU (CẬP NHẬT) ====
+// ==== XÓA DỮ LIỆU ====
 function clearSelectedWeekData() {
     const weekName = getWeekRangeString(viewingWeekId);
     if (confirm(`Bạn có chắc chắn muốn xóa toàn bộ dữ liệu (người và món) của tuần ${weekName}?`)) {
         people = [];
         meals = [];
-        syncDataToFirebase(); // Đẩy mảng rỗng lên Firebase
+        syncDataToFirebase(); 
     }
 }
 
-// ==== KHỞI ĐỘNG TRANG (VIẾT LẠI HOÀN TOÀN) ====
+// ==== KHỞI ĐỘNG TRANG (CẬP NHẬT) ====
 function init() {
     currentWeekId = getWeekId(new Date());
     viewingWeekId = currentWeekId; // Mặc định xem tuần hiện tại
@@ -382,22 +376,49 @@ function init() {
     // 1. Tải toàn bộ danh sách các tuần đã có
     const allWeeksRef = database.ref('weeks');
     allWeeksRef.once('value', (snapshot) => {
-        allData = snapshot.val() || {};
+        const existingWeeks = snapshot.val() || {};
+        allData = existingWeeks; // Gán tuần đã có vào allData
 
-        // 2. Tự động sao chép danh sách người nếu tuần mới được tạo
+        // 2. Tự động THÊM (ảo) tuần hiện tại, tuần trước, tuần sau vào allData NẾU CHƯA CÓ
+        // Điều này đảm bảo chúng luôn có trong dropdown để chọn
+        
+        // Tuần hiện tại
         if (!allData[currentWeekId]) {
-            const sortedWeeks = Object.keys(allData).sort().reverse();
-            let lastWeekPeople = [];
-            if (sortedWeeks.length > 0) {
-                lastWeekPeople = allData[sortedWeeks[0]].people || [];
-            }
-            // Tạo tuần mới với danh sách người cũ, nhưng chưa lưu
-            allData[currentWeekId] = { people: lastWeekPeople, meals: [] };
-            // Lưu (chỉ lưu people, meals rỗng)
-            database.ref(`weeks/${currentWeekId}`).set(allData[currentWeekId]);
+            allData[currentWeekId] = { people: [], meals: [] }; // Tạo ảo
+        }
+        
+        // Tuần trước
+        let lastWeekDate = new Date();
+        lastWeekDate.setDate(lastWeekDate.getDate() - 7);
+        const lastWeekId = getWeekId(lastWeekDate);
+        if (!allData[lastWeekId]) {
+            allData[lastWeekId] = { people: [], meals: [] }; // Tạo ảo
         }
 
-        // 3. Tải dữ liệu tuần hiện tại (sẽ kích hoạt listener)
+        // Tuần sau
+        let nextWeekDate = new Date();
+        nextWeekDate.setDate(nextWeekDate.getDate() + 7);
+        const nextWeekId = getWeekId(nextWeekDate);
+        if (!allData[nextWeekId]) {
+            allData[nextWeekId] = { people: [], meals: [] }; // Tạo ảo
+        }
+
+        // 3. Tự động sao chép 'people' cho tuần hiện tại (nếu nó MỚI TINH)
+        if (!existingWeeks[currentWeekId]) { // Chỉ chạy nếu tuần này mới được tạo
+            const sortedWeeks = Object.keys(existingWeeks).sort().reverse();
+            let lastWeekPeople = [];
+            if (sortedWeeks.length > 0) {
+                // Lấy 'people' từ tuần có thật, gần nhất
+                lastWeekPeople = existingWeeks[sortedWeeks[0]].people || [];
+            }
+            allData[currentWeekId].people = lastWeekPeople;
+            
+            // LƯU tuần hiện tại này lên Firebase (với danh sách people)
+            database.ref(`weeks/${currentWeekId}`).set(allData[currentWeekId]);
+        }
+        
+        // 4. Tải dữ liệu tuần hiện tại (sẽ kích hoạt listener)
+        // Hàm này sẽ tự động gọi populateWeekPicker()
         loadWeekData(currentWeekId);
     });
 }
