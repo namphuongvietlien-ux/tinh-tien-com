@@ -8,25 +8,28 @@
 </head>
 <body>
     <div class="container">
+
+        <div class="card week-picker">
+            <h2>🗓️ Chọn Tuần</h2>
+            <p>Dữ liệu được tự động lưu theo tuần.</p>
+            <select id="weekPicker" onchange="handleWeekChange()"></select>
+            <p id="weekNotice" class="week-notice"></p>
+        </div>
+
         <h1>📝 Quản Lý Tiền Cơm Trưa</h1>
 
-        <div class="card week-navigation">
-            <button onclick="changeWeek(-1)">&lt; Tuần trước</button>
-            <h2 id="currentWeekDisplay"></h2>
-            <button onclick="changeWeek(1)">Tuần sau &gt;</button>
-        </div>
-        <div class="card">
-            <h2>👤 Thêm người</h2>
+        <div class="card" id="addPersonCard">
+            <h2>👤 Thêm người (cho tuần này)</h2>
             <div class="form-group">
                 <input type="text" id="personName" placeholder="Nhập tên thành viên">
                 <button onclick="addPerson()">Thêm</button>
             </div>
-            <h3>Danh sách thành viên:</h3>
+            <h3>Danh sách thành viên (tuần này):</h3>
             <ul id="peopleList"></ul>
         </div>
 
-        <div class="card">
-            <h2>🍛 Thêm món ăn</h2>
+        <div class="card" id="addMealCard">
+            <h2>🍛 Thêm món ăn (cho tuần này)</h2>
             <div class="form-group">
                 <select id="daySelect">
                     <option value="Thứ 2">Thứ 2</option>
@@ -71,6 +74,7 @@
             <table id="summaryTable">
                 <thead>
                     <tr>
+                        <th>✔️</th> 
                         <th>🧑 Tên</th>
                         <th>🍱 Số suất</th>
                         <th>💵 Tổng tiền (VNĐ)</th>
@@ -83,11 +87,20 @@
         
         <div class="card qr-payment">
             <h2>💰 Thanh toán</h2>
-            <p>Quét mã QR dưới đây để thanh toán tiền cơm:</p>
-            <img src="qr-code.jpg" alt="Mã QR thanh toán Techcombank" width="200">
+            <p>Tick chọn 1 người hoặc nhấn nút dưới đây để tạo QR:</p>
+            
+            <button onclick="generateTotalWeekQR()" class="qr-total-btn">Tạo QR theo Tổng Tuần</button>
+            
+            <img 
+                id="qrPaymentImage"
+                src="" 
+                alt="Quét mã QR để thanh toán" 
+                width="250" 
+                style="display: block; margin: 15px auto 0;"
+            >
         </div>
 
-        <button id="clearData" onclick="clearAllData()">🗑️ Xóa toàn bộ dữ liệu</button>
+        <button id="manageDataBtn" onclick="clearCurrentWeekData()">🗑️ Xóa dữ liệu tuần này</button>
     </div>
 
     <script src="script.js"></script>
