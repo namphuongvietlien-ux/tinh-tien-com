@@ -324,7 +324,7 @@ function generateTotalWeekQR() {
 
     const weekStr = getWeekRangeString(viewingWeekId);
     // encodeURIComponent để mã hóa dấu cách, dấu / thành %20, %2F
-    const message = encodeURIComponent(`Tien com tuan ${weekStr}`);
+    const message = encodeURIComponent(` tu ${weekStr}`);
     
     const qrUrl = `${BASE_QR_URL}?amount=${currentGrandTotal}&addInfo=${message}`;
     document.getElementById('qrPaymentImage').src = qrUrl;
@@ -402,4 +402,5 @@ function init() {
 }
 
 window.onload = init;
+
 
