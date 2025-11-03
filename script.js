@@ -355,7 +355,7 @@ function handlePersonQRCheck(checkbox) {
     const amount = checkbox.dataset.amount;
     const weekStr = getWeekRangeString(viewingWeekId);
     
-    const message = encodeURIComponent(`${name} tien com tuan ${weekStr}`);
+    const message = encodeURIComponent(`${name} comtuan ${weekStr}`);
     const qrUrl = `${BASE_QR_URL}?amount=${amount}&addInfo=${message}`;
     
     qrImage.src = qrUrl;
@@ -402,3 +402,4 @@ function init() {
 }
 
 window.onload = init;
+
