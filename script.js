@@ -393,7 +393,7 @@ function generateRangeSummary() {
 function generateTotalWeekQR() {
     document.querySelectorAll('.person-qr-check').forEach(cb => cb.checked = false);
     const dateCode = getWeekDateCode(viewingWeekId); 
-    const message = encodeURIComponent(`Tong com tu ${dateCode}`);
+    const message = encodeURIComponent(`VietLien_15nguyenluongbang tu ${dateCode}`);
     
     // (CẬP NHẬT) Dùng STK TỔNG (Nguyễn Thuỷ)
     const qrUrl = `${TOTAL_QR_URL}?amount=${currentGrandTotal}&addInfo=${message}`;
@@ -485,3 +485,4 @@ function init() {
 }
 
 window.onload = init;
+
