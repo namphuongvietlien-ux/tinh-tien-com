@@ -14,15 +14,21 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
-// ==== THÔNG TIN TÀI KHOẢN NGÂN HÀNG ====
-const BANK_BIN = '970407'; 
-const ACCOUNT_NO = '19027952512028'; 
+// ==== THÔNG TIN TÀI KHOẢN NGÂN HÀNG (CẬP NHẬT) ====
+const BANK_BIN = '970407'; // Mã BIN của Techcombank
 const QR_TEMPLATE = 'print';
-const BASE_QR_URL = `https://img.vietqr.io/image/${BANK_BIN}-${ACCOUNT_NO}-${QR_TEMPLATE}.png`;
+
+// STK Cũ (Trần Thị Thảo Nguyên) - Dùng cho tick lẻ
+const MAIN_ACCOUNT_NO = '19027952512028';
+const MAIN_QR_URL = `https://img.vietqr.io/image/${BANK_BIN}-${MAIN_ACCOUNT_NO}-${QR_TEMPLATE}.png`;
+
+// STK Mới (Nguyễn Thuỷ) - Dùng cho TỔNG TUẦN
+const TOTAL_ACCOUNT_NO = '2939799993';
+const TOTAL_QR_URL = `https://img.vietqr.io/image/${BANK_BIN}-${TOTAL_ACCOUNT_NO}-${QR_TEMPLATE}.png`;
 
 
 // ==== DỮ LIỆU ====
-let allData = {}; // Sẽ chứa TOÀN BỘ dữ liệu từ Firebase
+let allData = {}; 
 let currentWeekId = ''; 
 let viewingWeekId = ''; 
 
@@ -127,7 +133,8 @@ function loadWeekData(weekId) {
         notice.style.color = (weekId === currentWeekId) ? "green" : "blue";
     });
 
-    document.getElementById('qrPaymentImage').src = BASE_QR_URL;
+    // (CẬP NHẬT) Đặt QR mặc định là STK chính
+    document.getElementById('qrPaymentImage').src = MAIN_QR_URL;
     document.getElementById("addPersonCard").classList.remove('hidden');
     document.getElementById("addMealCard").classList.remove('hidden');
     const btn = document.getElementById("manageDataBtn");
@@ -294,7 +301,7 @@ function updateSummary() {
 }
 
 
-// ==== (CẬP NHẬT) TỔNG KẾT THEO THỜI GIAN ====
+// ==== TỔNG KẾT THEO THỜI GIAN ====
 function generateRangeSummary() {
     const startDate = new Date(document.getElementById('startDate').value + 'T00:00:00');
     const endDate = new Date(document.getElementById('endDate').value + 'T23:59:59');
@@ -308,9 +315,8 @@ function generateRangeSummary() {
     let rangeGrandTotal = 0;
     const allPeopleSet = new Set();
     
-    // (MỚI) Hàm chuẩn hóa tên, tốt hơn
+    // Hàm chuẩn hóa tên
     const normalizeName = (name) => {
-        // Map các tên (viết thường) về tên (chuẩn)
         const normalizationMap = {
             "a tuân": "A Tuân",
             "phương": "Phương",
@@ -322,24 +328,19 @@ function generateRangeSummary() {
             "c thuỷ": "C Thuỷ",
             "c thuý": "C Thuý"
         };
-        
         if (!name) return 'Không tên';
         let normalizedName = name.trim();
         let nameLower = normalizedName.toLowerCase();
-        
-        // 1. Kiểm tra map
         if (normalizationMap[nameLower]) {
             return normalizationMap[nameLower];
         }
-        
-        // 2. Nếu không có, trả về tên đã trim (nó có thể là dạng đúng, VD: "A Tuân", "C Trúc")
         return normalizedName;
     };
 
     // 1. Tạo danh sách người đã chuẩn hóa
     Object.values(allData).forEach(week => {
         (week.people || []).forEach(person => {
-            allPeopleSet.add(normalizeName(person)); // Thêm tên đã chuẩn hóa
+            allPeopleSet.add(normalizeName(person)); 
         });
         (week.meals || []).forEach(meal => {
              allPeopleSet.add(normalizeName(meal.person));
@@ -358,12 +359,10 @@ function generateRangeSummary() {
             const weekData = allData[weekId];
             
             (weekData.meals || []).forEach(meal => {
-                const normalizedPerson = normalizeName(meal.person); // Chuẩn hóa tên người ăn
-                
+                const normalizedPerson = normalizeName(meal.person); 
                 if (totalSummary[normalizedPerson] !== undefined) {
                     totalSummary[normalizedPerson] += meal.price;
                 } else {
-                     // Trường hợp này ít xảy ra, nhưng để an toàn
                      totalSummary[normalizedPerson] = meal.price;
                 }
                 rangeGrandTotal += meal.price;
@@ -374,13 +373,9 @@ function generateRangeSummary() {
     // Hiển thị kết quả lên bảng
     const tbody = document.querySelector("#rangeSummaryTable tbody");
     tbody.innerHTML = '';
-
-    // Sắp xếp tên theo thứ tự alphabet
     const sortedPeople = Object.keys(totalSummary).sort();
-
     for (const person of sortedPeople) {
         const total = totalSummary[person];
-        // Chỉ hiển thị những người có ăn
         if (total > 0) { 
             const row = document.createElement("tr");
             row.innerHTML = `
@@ -390,27 +385,30 @@ function generateRangeSummary() {
             tbody.appendChild(row);
         }
     }
-    
-    // Cập nhật tổng cộng
     document.getElementById("rangeGrandTotal").textContent = `${rangeGrandTotal.toLocaleString()} VNĐ`;
 }
 
 
-// ==== CÁC HÀM XỬ LÝ QR ====
+// ==== CÁC HÀM XỬ LÝ QR (CẬP NHẬT) ====
 function generateTotalWeekQR() {
     document.querySelectorAll('.person-qr-check').forEach(cb => cb.checked = false);
     const dateCode = getWeekDateCode(viewingWeekId); 
     const message = encodeURIComponent(`Tong com tu ${dateCode}`);
-    const qrUrl = `${BASE_QR_URL}?amount=${currentGrandTotal}&addInfo=${message}`;
+    
+    // (CẬP NHẬT) Dùng STK TỔNG (Nguyễn Thuỷ)
+    const qrUrl = `${TOTAL_QR_URL}?amount=${currentGrandTotal}&addInfo=${message}`;
     document.getElementById('qrPaymentImage').src = qrUrl;
 }
 
 function handlePersonQRCheck(checkbox) {
     const qrImage = document.getElementById('qrPaymentImage');
+    
+    // (CẬP NHẬT) Reset về STK CHÍNH (Thảo Nguyên)
     if (!checkbox.checked) {
-        qrImage.src = BASE_QR_URL;
+        qrImage.src = MAIN_QR_URL;
         return;
     }
+    
     document.querySelectorAll('.person-qr-check').forEach(cb => {
         if (cb !== checkbox) {
             cb.checked = false;
@@ -420,7 +418,9 @@ function handlePersonQRCheck(checkbox) {
     const amount = checkbox.dataset.amount;
     const dateCode = getWeekDateCode(viewingWeekId); 
     const message = encodeURIComponent(`${name} tu ${dateCode}`);
-    const qrUrl = `${BASE_QR_URL}?amount=${amount}&addInfo=${message}`;
+    
+    // (CẬP NHẬT) Dùng STK CHÍNH (Thảo Nguyên)
+    const qrUrl = `${MAIN_QR_URL}?amount=${amount}&addInfo=${message}`;
     qrImage.src = qrUrl;
 }
 
@@ -438,14 +438,15 @@ function clearSelectedWeekData() {
 function init() {
     currentWeekId = getWeekId(new Date());
     viewingWeekId = currentWeekId; 
-    document.getElementById('qrPaymentImage').src = BASE_QR_URL;
+    
+    // (CẬP NHẬT) Đặt QR mặc định là STK CHÍNH
+    document.getElementById('qrPaymentImage').src = MAIN_QR_URL;
 
     const allWeeksRef = database.ref('weeks');
     allWeeksRef.once('value', (snapshot) => {
         const existingWeeks = snapshot.val() || {};
-        allData = existingWeeks; // Gán TOÀN BỘ dữ liệu vào biến toàn cục
+        allData = existingWeeks; 
 
-        // Tạo các tuần ảo (trước, này, sau)
         if (!allData[currentWeekId]) {
             allData[currentWeekId] = { people: [], meals: [] };
         }
@@ -462,7 +463,6 @@ function init() {
             allData[nextWeekId] = { people: [], meals: [] };
         }
 
-        // Sao chép 'people' cho tuần hiện tại (nếu nó MỚI TINH)
         if (!existingWeeks[currentWeekId]) { 
             const sortedWeeks = Object.keys(existingWeeks).sort().reverse();
             let lastWeekPeople = [];
@@ -473,10 +473,8 @@ function init() {
             database.ref(`weeks/${currentWeekId}`).set(allData[currentWeekId]);
         }
         
-        // Tải dữ liệu tuần hiện tại
         loadWeekData(currentWeekId);
         
-        // Đặt ngày mặc định cho bộ lọc
         const today = new Date().toISOString().split('T')[0];
         const sortedWeekIds = Object.keys(existingWeeks).sort(); 
         const oldestWeek = sortedWeekIds.length > 0 ? sortedWeekIds[0] : today;
@@ -486,5 +484,4 @@ function init() {
     });
 }
 
-// Chạy hàm init khi tải trang
 window.onload = init;
