@@ -144,6 +144,7 @@ function addPerson() {
     const name = nameInput.value.trim();
     if (!name) { alert("Vui lòng nhập tên."); return; }
     if (people.includes(name)) { alert("Người này đã tồn tại trong tuần này."); return; }
+    if (!people) people = []; // Khởi tạo nếu 'people' là null
     people.push(name);
     syncDataToFirebase(); 
     nameInput.value = '';
@@ -293,7 +294,7 @@ function updateSummary() {
 }
 
 
-// ==== (HÀM MỚI) TỔNG KẾT THEO THỜI GIAN ====
+// ==== (CẬP NHẬT) TỔNG KẾT THEO THỜI GIAN ====
 function generateRangeSummary() {
     const startDate = new Date(document.getElementById('startDate').value + 'T00:00:00');
     const endDate = new Date(document.getElementById('endDate').value + 'T23:59:59');
@@ -305,33 +306,65 @@ function generateRangeSummary() {
 
     const totalSummary = {};
     let rangeGrandTotal = 0;
-
-    // Lấy tất cả người dùng từ TẤT CẢ các tuần để tạo danh sách đầy đủ
     const allPeopleSet = new Set();
+    
+    // (MỚI) Hàm chuẩn hóa tên, tốt hơn
+    const normalizeName = (name) => {
+        // Map các tên (viết thường) về tên (chuẩn)
+        const normalizationMap = {
+            "a tuân": "A Tuân",
+            "phương": "Phương",
+            "phụng": "Phương",
+            "phung": "Phương",
+            "nguyên": "Nguyên",
+            "c trúc": "C Trúc",
+            "trúc": "C Trúc",
+            "c thuỷ": "C Thuỷ",
+            "c thuý": "C Thuý"
+        };
+        
+        if (!name) return 'Không tên';
+        let normalizedName = name.trim();
+        let nameLower = normalizedName.toLowerCase();
+        
+        // 1. Kiểm tra map
+        if (normalizationMap[nameLower]) {
+            return normalizationMap[nameLower];
+        }
+        
+        // 2. Nếu không có, trả về tên đã trim (nó có thể là dạng đúng, VD: "A Tuân", "C Trúc")
+        return normalizedName;
+    };
+
+    // 1. Tạo danh sách người đã chuẩn hóa
     Object.values(allData).forEach(week => {
-        (week.people || []).forEach(person => allPeopleSet.add(person));
+        (week.people || []).forEach(person => {
+            allPeopleSet.add(normalizeName(person)); // Thêm tên đã chuẩn hóa
+        });
+        (week.meals || []).forEach(meal => {
+             allPeopleSet.add(normalizeName(meal.person));
+        });
     });
+    
     const allPeopleList = Array.from(allPeopleSet);
     allPeopleList.forEach(person => {
         totalSummary[person] = 0; // Khởi tạo tất cả = 0
     });
 
-    // Lặp qua allData (đã tải về lúc init)
+    // 2. Lặp qua allData để tính toán
     for (const weekId in allData) {
         const weekDate = new Date(weekId + 'T00:00:00');
-
-        // Kiểm tra xem tuần này có nằm trong phạm vi ngày đã chọn không
         if (weekDate >= startDate && weekDate <= endDate) {
             const weekData = allData[weekId];
             
-            // Lặp qua các bữa ăn của tuần đó
             (weekData.meals || []).forEach(meal => {
-                if (totalSummary[meal.person] !== undefined) {
-                    totalSummary[meal.person] += meal.price;
-                }
-                // Nếu người ăn không có trong danh sách (vd: người cũ), ta vẫn cộng vào
-                else {
-                     totalSummary[meal.person] = meal.price;
+                const normalizedPerson = normalizeName(meal.person); // Chuẩn hóa tên người ăn
+                
+                if (totalSummary[normalizedPerson] !== undefined) {
+                    totalSummary[normalizedPerson] += meal.price;
+                } else {
+                     // Trường hợp này ít xảy ra, nhưng để an toàn
+                     totalSummary[normalizedPerson] = meal.price;
                 }
                 rangeGrandTotal += meal.price;
             });
@@ -342,14 +375,20 @@ function generateRangeSummary() {
     const tbody = document.querySelector("#rangeSummaryTable tbody");
     tbody.innerHTML = '';
 
-    for (const person in totalSummary) {
+    // Sắp xếp tên theo thứ tự alphabet
+    const sortedPeople = Object.keys(totalSummary).sort();
+
+    for (const person of sortedPeople) {
         const total = totalSummary[person];
-        const row = document.createElement("tr");
-        row.innerHTML = `
-            <td>${person}</td>
-            <td>${total.toLocaleString()} VNĐ</td>
-        `;
-        tbody.appendChild(row);
+        // Chỉ hiển thị những người có ăn
+        if (total > 0) { 
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${person}</td>
+                <td>${total.toLocaleString()} VNĐ</td>
+            `;
+            tbody.appendChild(row);
+        }
     }
     
     // Cập nhật tổng cộng
@@ -395,7 +434,7 @@ function clearSelectedWeekData() {
     }
 }
 
-// ==== KHỞI ĐỘNG TRANG (CẬP NHẬT) ====
+// ==== KHỞI ĐỘNG TRANG ====
 function init() {
     currentWeekId = getWeekId(new Date());
     viewingWeekId = currentWeekId; 
@@ -437,9 +476,9 @@ function init() {
         // Tải dữ liệu tuần hiện tại
         loadWeekData(currentWeekId);
         
-        // (MỚI) Đặt ngày mặc định cho bộ lọc
+        // Đặt ngày mặc định cho bộ lọc
         const today = new Date().toISOString().split('T')[0];
-        const sortedWeekIds = Object.keys(existingWeeks).sort(); // Sắp xếp để tìm tuần cũ nhất
+        const sortedWeekIds = Object.keys(existingWeeks).sort(); 
         const oldestWeek = sortedWeekIds.length > 0 ? sortedWeekIds[0] : today;
 
         document.getElementById('startDate').value = oldestWeek;
