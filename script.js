@@ -2,7 +2,7 @@
 const firebaseConfig = {
     apiKey: "AIzaSy...", // DÁN KEY CỦA BẠN VÀO
     authDomain: "comtruathuymoc-01060520.firebaseapp.com",
-    databaseURL: "https://comtruathuymoc-default-rtdb.firebaseio.com", // ĐÂY LÀ URL ĐÚNG
+    databaseURL: "https://comtruathuymoc-default-rtdb.firebaseio.com", // URL CỦA BẠN
     projectId: "comtruathuymoc-01060520",
     storageBucket: "comtruathuymoc-01060520.appspot.com",
     messagingSenderId: "...", // DÁN CỦA BẠN VÀO
@@ -11,14 +11,18 @@ const firebaseConfig = {
 // ======================================================
 
 // Khởi chạy Firebase
-firebase.initializeApp(firebaseConfig);
+try {
+    firebase.initializeApp(firebaseConfig);
+} catch (e) {
+    console.error("Firebase Init Error:", e);
+}
 const database = firebase.database();
 
-// ==== THÔNG TIN TÀI KHOẢN NGÂN HÀNG (CẬP NHẬT) ====
-const BANK_BIN = '970407'; // Mã BIN của Techcombank
+// ==== THÔNG TIN TÀI KHOẢN NGÂN HÀNG ====
+const BANK_BIN = '970407'; 
 const QR_TEMPLATE = 'print';
 
-// STK Cũ (Trần Thị Thảo Nguyên) - Dùng cho tick lẻ
+// STK Cũ (Trần Thị Thảo Nguyên)
 const MAIN_ACCOUNT_NO = '19027952512028';
 const MAIN_QR_URL = `https://img.vietqr.io/image/${BANK_BIN}-${MAIN_ACCOUNT_NO}-${QR_TEMPLATE}.png`;
 
@@ -39,7 +43,7 @@ let currentGrandTotal = 0;
 let currentWeekListener = null; 
 let currentWeekRef = null; 
 
-// ==== HÀM LẤY ID TUẦN ====
+// ==== HÀM LẤY ID TUẦN (Chuẩn ISO) ====
 function getWeekId(date) {
     const d = new Date(date);
     const dayOfWeek = d.getDay(); 
@@ -51,20 +55,26 @@ function getWeekId(date) {
     return `${y}-${m}-${da}`;
 }
 
-// ==== HÀM LẤY DẢI NGÀY ====
+// ==== HÀM HIỂN THỊ DẢI NGÀY ====
 function getWeekRangeString(weekId) {
-    const monday = new Date(weekId + 'T00:00:00');
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6); 
-    const monDay = monday.getDate().toString().padStart(2, '0');
-    const monMonth = (monday.getMonth() + 1).toString().padStart(2, '0');
-    const sunDay = sunday.getDate().toString().padStart(2, '0');
-    const sunMonth = (sunday.getMonth() + 1).toString().padStart(2, '0');
-    const sunYear = sunday.getFullYear();
-    return `${monDay}/${monMonth} - ${sunDay}/${sunMonth}/${sunYear}`;
+    if (!weekId) return "Đang tải...";
+    try {
+        const monday = new Date(weekId + 'T00:00:00');
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6); 
+        const monDay = monday.getDate().toString().padStart(2, '0');
+        const monMonth = (monday.getMonth() + 1).toString().padStart(2, '0');
+        const sunDay = sunday.getDate().toString().padStart(2, '0');
+        const sunMonth = (sunday.getMonth() + 1).toString().padStart(2, '0');
+        const sunYear = sunday.getFullYear();
+        return `${monDay}/${monMonth} - ${sunDay}/${sunMonth}/${sunYear}`;
+    } catch (e) {
+        return weekId;
+    }
 }
 
 function getWeekDateCode(weekId) {
+    if (!weekId) return "";
     const monday = new Date(weekId + 'T00:00:00');
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
@@ -79,19 +89,23 @@ function getWeekDateCode(weekId) {
 }
 
 
-// ==== HÀM CẬP NHẬT FIREBASE ====
+// ==== CẬP NHẬT FIREBASE ====
 function syncDataToFirebase() {
+    if (!viewingWeekId) return;
     const ref = database.ref(`weeks/${viewingWeekId}`);
     ref.set({
-        people: people,
-        meals: meals
-    });
+        people: people || [],
+        meals: meals || []
+    }).catch(err => alert("Lỗi lưu dữ liệu: " + err.message));
 }
 
 // ==== BỘ CHỌN TUẦN ====
 function populateWeekPicker() {
     const weekPicker = document.getElementById("weekPicker");
     weekPicker.innerHTML = '';
+    
+    if (!allData) return;
+
     const sortedWeeks = Object.keys(allData).sort().reverse();
     sortedWeeks.forEach(weekId => {
         const option = document.createElement("option");
@@ -105,11 +119,12 @@ function populateWeekPicker() {
 
 function handleWeekChange() {
     const newWeekId = document.getElementById("weekPicker").value;
-    loadWeekData(newWeekId);
+    if (newWeekId) loadWeekData(newWeekId);
 }
 
 // ==== TẢI DỮ LIỆU TUẦN ====
 function loadWeekData(weekId) {
+    if (!weekId) return;
     viewingWeekId = weekId;
 
     if (currentWeekListener && currentWeekRef) {
@@ -120,26 +135,37 @@ function loadWeekData(weekId) {
     currentWeekListener = currentWeekRef.on('value', (snapshot) => { 
         const weekData = snapshot.val() || { people: [], meals: [] };
         
-        people = weekData.people || allData[viewingWeekId]?.people || [];
-        meals = weekData.meals || allData[viewingWeekId]?.meals || [];
+        // AN TOÀN: Luôn đảm bảo là mảng, tránh crash
+        people = weekData.people || (allData[viewingWeekId] && allData[viewingWeekId].people) || [];
+        meals = weekData.meals || (allData[viewingWeekId] && allData[viewingWeekId].meals) || [];
 
-        updatePeopleList();
-        updatePersonSelect();
-        updateDailyExpenses();
-        updateSummary();
+        try {
+            updatePeopleList();
+            updatePersonSelect();
+            updateDailyExpenses();
+            updateSummary();
+        } catch (e) {
+            console.error("Lỗi hiển thị dữ liệu tuần:", e);
+        }
         
         const notice = document.getElementById("weekNotice");
-        notice.textContent = `Bạn đang xem tuần: ${getWeekRangeString(weekId)}`;
-        notice.style.color = (weekId === currentWeekId) ? "green" : "blue";
+        if(notice) {
+            notice.textContent = `Bạn đang xem tuần: ${getWeekRangeString(weekId)}`;
+            notice.style.color = (weekId === currentWeekId) ? "green" : "blue";
+        }
     });
 
-    // (CẬP NHẬT) Đặt QR mặc định là STK chính
-    document.getElementById('qrPaymentImage').src = MAIN_QR_URL;
+    const qrImg = document.getElementById('qrPaymentImage');
+    if(qrImg) qrImg.src = MAIN_QR_URL;
+    
     document.getElementById("addPersonCard").classList.remove('hidden');
     document.getElementById("addMealCard").classList.remove('hidden');
+    
     const btn = document.getElementById("manageDataBtn");
-    btn.textContent = "🗑️ Xóa dữ liệu tuần này";
-    btn.onclick = clearSelectedWeekData; 
+    if(btn) {
+        btn.textContent = "🗑️ Xóa dữ liệu tuần này";
+        btn.onclick = clearSelectedWeekData; 
+    }
     
     populateWeekPicker();
 }
@@ -150,16 +176,17 @@ function addPerson() {
     const nameInput = document.getElementById("personName");
     const name = nameInput.value.trim();
     if (!name) { alert("Vui lòng nhập tên."); return; }
+    if (!people) people = [];
     if (people.includes(name)) { alert("Người này đã tồn tại trong tuần này."); return; }
-    if (!people) people = []; // Khởi tạo nếu 'people' là null
     people.push(name);
     syncDataToFirebase(); 
     nameInput.value = '';
 }
 
-// ==== CẬP NHẬT DANH SÁCH NGƯỜI ====
+// ==== CẬP NHẬT UI NGƯỜI ====
 function updatePeopleList() {
     const ul = document.getElementById("peopleList");
+    if(!ul) return;
     ul.innerHTML = '';
     (people || []).forEach(name => { 
         const li = document.createElement("li");
@@ -170,6 +197,7 @@ function updatePeopleList() {
 
 function updatePersonSelect() {
     const select = document.getElementById("personSelect");
+    if(!select) return;
     select.innerHTML = '<option value="">-- Chọn người --</option>';
     (people || []).forEach(name => { 
         const option = document.createElement("option");
@@ -179,34 +207,39 @@ function updatePersonSelect() {
     });
 }
 
-// ==== HÀM HỖ TRỢ GIÁ ====
 function setPrice(price) {
     document.getElementById("foodPrice").value = price;
 }
 
 // ==== THÊM MÓN ĂN ====
 function addFood() {
-    const day = document.getElementById("daySelect").value;
-    const person = document.getElementById("personSelect").value;
-    const food = document.getElementById("foodItem").value.trim();
-    const price = parseFloat(document.getElementById("foodPrice").value);
+    const daySelect = document.getElementById("daySelect");
+    const personSelect = document.getElementById("personSelect");
+    const foodInput = document.getElementById("foodItem");
+    const priceInput = document.getElementById("foodPrice");
+
+    if(!daySelect || !personSelect || !foodInput || !priceInput) return;
+
+    const day = daySelect.value;
+    const person = personSelect.value;
+    const food = foodInput.value.trim();
+    const price = parseFloat(priceInput.value);
+
     if (!person || !food || isNaN(price) || price <= 0) {
         alert("Vui lòng nhập đầy đủ và chính xác thông tin món ăn."); return;
     }
-    if (!meals) meals = []; // Khởi tạo nếu 'meals' là null
+    if (!meals) meals = []; 
     meals.push({ id: Date.now(), day, person, food, price });
     syncDataToFirebase(); 
-    clearFoodInputs();
+    
+    foodInput.value = '';
+    priceInput.value = '';
 }
 
-function clearFoodInputs() {
-    document.getElementById("foodItem").value = '';
-    document.getElementById("foodPrice").value = '';
-}
-
-// ==== HIỂN THỊ CHI TIÊU THEO NGÀY ====
+// ==== HIỂN THỊ CHI TIÊU ====
 function updateDailyExpenses() {
     const container = document.getElementById("daily-expenses");
+    if(!container) return;
     container.innerHTML = '';
     const grouped = {};
     (meals || []).forEach(item => { 
@@ -218,28 +251,35 @@ function updateDailyExpenses() {
         if (grouped[day]) {
             const section = document.createElement("div");
             section.classList.add("day-section");
+            
             const titleContainer = document.createElement("div");
             titleContainer.classList.add("day-title-container");
+            
             const title = document.createElement("h3");
             title.textContent = `📅 ${day}`;
             titleContainer.appendChild(title);
+            
             const deleteDayBtn = document.createElement("button");
             deleteDayBtn.textContent = "Xóa ngày";
             deleteDayBtn.classList.add("delete-day-btn");
             deleteDayBtn.onclick = () => deleteDay(day);
             titleContainer.appendChild(deleteDayBtn);
+            
             section.appendChild(titleContainer);
+            
             const ul = document.createElement("ul");
             grouped[day].forEach(item => {
                 const li = document.createElement("li");
                 const text = document.createElement("span");
                 text.textContent = `${item.person} ăn ${item.food} - ${item.price.toLocaleString()} VNĐ `;
                 li.appendChild(text);
+                
                 const deleteItemBtn = document.createElement("button");
                 deleteItemBtn.textContent = "x";
                 deleteItemBtn.classList.add("delete-item-btn");
                 deleteItemBtn.onclick = () => deleteMealItem(item.id);
                 li.appendChild(deleteItemBtn);
+                
                 ul.appendChild(li);
             });
             section.appendChild(ul);
@@ -248,7 +288,6 @@ function updateDailyExpenses() {
     });
 }
 
-// ==== HÀM XÓA ====
 function deleteMealItem(mealId) {
     if (confirm("Bạn có chắc muốn xóa món ăn này?")) {
         meals = (meals || []).filter(item => item.id !== mealId);
@@ -263,9 +302,10 @@ function deleteDay(dayName) {
     }
 }
 
-// ==== TỔNG KẾT TUẦN ====
+// ==== TỔNG KẾT ====
 function updateSummary() {
     const tbody = document.querySelector("#summaryTable tbody");
+    if(!tbody) return;
     tbody.innerHTML = '';
     const summary = {};
     (meals || []).forEach(item => { 
@@ -297,134 +337,118 @@ function updateSummary() {
         tbody.appendChild(row);
     });
     currentGrandTotal = grandTotal; 
-    document.getElementById("grandTotal").textContent = `Tổng chi phí cả tuần: ${grandTotal.toLocaleString()} VNĐ`;
+    const grandTotalEl = document.getElementById("grandTotal");
+    if(grandTotalEl) grandTotalEl.textContent = `Tổng chi phí cả tuần: ${grandTotal.toLocaleString()} VNĐ`;
 }
 
 
-// ==== TỔNG KẾT THEO THỜI GIAN ====
+// ==== THỐNG KÊ THỜI GIAN ====
 function generateRangeSummary() {
-    const startDate = new Date(document.getElementById('startDate').value + 'T00:00:00');
-    const endDate = new Date(document.getElementById('endDate').value + 'T23:59:59');
+    try {
+        const startEl = document.getElementById('startDate');
+        const endEl = document.getElementById('endDate');
+        if(!startEl || !endEl) return;
 
-    if (isNaN(startDate) || isNaN(endDate)) {
-        alert("Vui lòng chọn ngày bắt đầu và kết thúc hợp lệ.");
-        return;
-    }
+        const startDate = new Date(startEl.value + 'T00:00:00');
+        const endDate = new Date(endEl.value + 'T23:59:59');
 
-    const totalSummary = {};
-    let rangeGrandTotal = 0;
-    const allPeopleSet = new Set();
-    
-    // Hàm chuẩn hóa tên
-    const normalizeName = (name) => {
-        const normalizationMap = {
-            "a tuân": "A Tuân",
-            "phương": "Phương",
-            "phụng": "Phương",
-            "phung": "Phương",
-            "nguyên": "Nguyên",
-            "c trúc": "C Trúc",
-            "trúc": "C Trúc",
-            "c thuỷ": "C Thuỷ",
-            "c thuý": "C Thuý"
+        if (isNaN(startDate) || isNaN(endDate)) {
+            alert("Vui lòng chọn ngày bắt đầu và kết thúc hợp lệ.");
+            return;
+        }
+
+        const totalSummary = {};
+        let rangeGrandTotal = 0;
+        const allPeopleSet = new Set();
+        
+        const normalizeName = (name) => {
+            const normalizationMap = {
+                "a tuân": "A Tuân", "phương": "Phương", "phụng": "Phương", 
+                "phung": "Phương", "nguyên": "Nguyên", "c trúc": "C Trúc", 
+                "trúc": "C Trúc", "c thuỷ": "C Thuỷ", "c thuý": "C Thuý"
+            };
+            if (!name) return 'Không tên';
+            let normalizedName = name.trim();
+            let nameLower = normalizedName.toLowerCase();
+            return normalizationMap[nameLower] || normalizedName;
         };
-        if (!name) return 'Không tên';
-        let normalizedName = name.trim();
-        let nameLower = normalizedName.toLowerCase();
-        if (normalizationMap[nameLower]) {
-            return normalizationMap[nameLower];
-        }
-        return normalizedName;
-    };
 
-    // 1. Tạo danh sách người đã chuẩn hóa
-    Object.values(allData).forEach(week => {
-        (week.people || []).forEach(person => {
-            allPeopleSet.add(normalizeName(person)); 
-        });
-        (week.meals || []).forEach(meal => {
-             allPeopleSet.add(normalizeName(meal.person));
-        });
-    });
-    
-    const allPeopleList = Array.from(allPeopleSet);
-    allPeopleList.forEach(person => {
-        totalSummary[person] = 0; // Khởi tạo tất cả = 0
-    });
-
-    // 2. Lặp qua allData để tính toán
-    for (const weekId in allData) {
-        const weekDate = new Date(weekId + 'T00:00:00');
-        if (weekDate >= startDate && weekDate <= endDate) {
-            const weekData = allData[weekId];
-            
-            (weekData.meals || []).forEach(meal => {
-                const normalizedPerson = normalizeName(meal.person); 
-                if (totalSummary[normalizedPerson] !== undefined) {
-                    totalSummary[normalizedPerson] += meal.price;
-                } else {
-                     totalSummary[normalizedPerson] = meal.price;
-                }
-                rangeGrandTotal += meal.price;
+        if (allData) {
+            Object.values(allData).forEach(week => {
+                (week.people || []).forEach(person => allPeopleSet.add(normalizeName(person)));
+                (week.meals || []).forEach(meal => allPeopleSet.add(normalizeName(meal.person)));
             });
-        }
-    }
+            
+            const allPeopleList = Array.from(allPeopleSet);
+            allPeopleList.forEach(person => totalSummary[person] = 0);
 
-    // Hiển thị kết quả lên bảng
-    const tbody = document.querySelector("#rangeSummaryTable tbody");
-    tbody.innerHTML = '';
-    const sortedPeople = Object.keys(totalSummary).sort();
-    for (const person of sortedPeople) {
-        const total = totalSummary[person];
-        if (total > 0) { 
-            const row = document.createElement("tr");
-            row.innerHTML = `
-                <td>${person}</td>
-                <td>${total.toLocaleString()} VNĐ</td>
-            `;
-            tbody.appendChild(row);
+            for (const weekId in allData) {
+                const weekDate = new Date(weekId + 'T00:00:00');
+                if (weekDate >= startDate && weekDate <= endDate) {
+                    const weekData = allData[weekId];
+                    (weekData.meals || []).forEach(meal => {
+                        const normalizedPerson = normalizeName(meal.person); 
+                        if (totalSummary[normalizedPerson] !== undefined) {
+                            totalSummary[normalizedPerson] += meal.price;
+                        } else {
+                             totalSummary[normalizedPerson] = meal.price;
+                        }
+                        rangeGrandTotal += meal.price;
+                    });
+                }
+            }
         }
+
+        const tbody = document.querySelector("#rangeSummaryTable tbody");
+        if(tbody) {
+            tbody.innerHTML = '';
+            const sortedPeople = Object.keys(totalSummary).sort();
+            for (const person of sortedPeople) {
+                const total = totalSummary[person];
+                if (total > 0) { 
+                    const row = document.createElement("tr");
+                    row.innerHTML = `<td>${person}</td><td>${total.toLocaleString()} VNĐ</td>`;
+                    tbody.appendChild(row);
+                }
+            }
+        }
+        const rangeTotalEl = document.getElementById("rangeGrandTotal");
+        if(rangeTotalEl) rangeTotalEl.textContent = `${rangeGrandTotal.toLocaleString()} VNĐ`;
+        
+    } catch (e) {
+        console.error("Lỗi tính tổng thời gian:", e);
+        alert("Có lỗi khi tính toán: " + e.message);
     }
-    document.getElementById("rangeGrandTotal").textContent = `${rangeGrandTotal.toLocaleString()} VNĐ`;
 }
 
 
-// ==== CÁC HÀM XỬ LÝ QR (CẬP NHẬT) ====
+// ==== QR CODE ====
 function generateTotalWeekQR() {
     document.querySelectorAll('.person-qr-check').forEach(cb => cb.checked = false);
     const dateCode = getWeekDateCode(viewingWeekId); 
-    const message = encodeURIComponent(`VietLien_15nguyenluongbang tu ${dateCode}`);
-    
-    // (CẬP NHẬT) Dùng STK TỔNG (Nguyễn Thuỷ)
+    const message = encodeURIComponent(`Tong com tu ${dateCode}`);
     const qrUrl = `${TOTAL_QR_URL}?amount=${currentGrandTotal}&addInfo=${message}`;
-    document.getElementById('qrPaymentImage').src = qrUrl;
+    const img = document.getElementById('qrPaymentImage');
+    if(img) img.src = qrUrl;
 }
 
 function handlePersonQRCheck(checkbox) {
     const qrImage = document.getElementById('qrPaymentImage');
-    
-    // (CẬP NHẬT) Reset về STK CHÍNH (Thảo Nguyên)
     if (!checkbox.checked) {
-        qrImage.src = MAIN_QR_URL;
+        if(qrImage) qrImage.src = MAIN_QR_URL;
         return;
     }
-    
     document.querySelectorAll('.person-qr-check').forEach(cb => {
-        if (cb !== checkbox) {
-            cb.checked = false;
-        }
+        if (cb !== checkbox) cb.checked = false;
     });
     const name = checkbox.dataset.name;
     const amount = checkbox.dataset.amount;
     const dateCode = getWeekDateCode(viewingWeekId); 
     const message = encodeURIComponent(`${name} tu ${dateCode}`);
-    
-    // (CẬP NHẬT) Dùng STK CHÍNH (Thảo Nguyên)
     const qrUrl = `${MAIN_QR_URL}?amount=${amount}&addInfo=${message}`;
-    qrImage.src = qrUrl;
+    if(qrImage) qrImage.src = qrUrl;
 }
 
-// ==== XÓA DỮ LIỆU ====
 function clearSelectedWeekData() {
     const weekName = getWeekRangeString(viewingWeekId);
     if (confirm(`Bạn có chắc chắn muốn xóa toàn bộ dữ liệu (người và món) của tuần ${weekName}?`)) {
@@ -434,55 +458,72 @@ function clearSelectedWeekData() {
     }
 }
 
-// ==== KHỞI ĐỘNG TRANG ====
+// ==== KHỞI ĐỘNG (AN TOÀN) ====
 function init() {
-    currentWeekId = getWeekId(new Date());
-    viewingWeekId = currentWeekId; 
-    
-    // (CẬP NHẬT) Đặt QR mặc định là STK CHÍNH
-    document.getElementById('qrPaymentImage').src = MAIN_QR_URL;
+    try {
+        currentWeekId = getWeekId(new Date());
+        viewingWeekId = currentWeekId; 
+        
+        const qrImg = document.getElementById('qrPaymentImage');
+        if(qrImg) qrImg.src = MAIN_QR_URL;
 
-    const allWeeksRef = database.ref('weeks');
-    allWeeksRef.once('value', (snapshot) => {
-        const existingWeeks = snapshot.val() || {};
-        allData = existingWeeks; 
+        const allWeeksRef = database.ref('weeks');
+        
+        // Hiện thông báo đang tải...
+        const notice = document.getElementById("weekNotice");
+        if(notice) notice.textContent = "Đang kết nối dữ liệu...";
 
-        if (!allData[currentWeekId]) {
-            allData[currentWeekId] = { people: [], meals: [] };
-        }
-        let lastWeekDate = new Date();
-        lastWeekDate.setDate(lastWeekDate.getDate() - 7);
-        const lastWeekId = getWeekId(lastWeekDate);
-        if (!allData[lastWeekId]) {
-            allData[lastWeekId] = { people: [], meals: [] };
-        }
-        let nextWeekDate = new Date();
-        nextWeekDate.setDate(nextWeekDate.getDate() + 7);
-        const nextWeekId = getWeekId(nextWeekDate);
-        if (!allData[nextWeekId]) {
-            allData[nextWeekId] = { people: [], meals: [] };
-        }
+        allWeeksRef.once('value', (snapshot) => {
+            const existingWeeks = snapshot.val() || {};
+            allData = existingWeeks; 
 
-        if (!existingWeeks[currentWeekId]) { 
-            const sortedWeeks = Object.keys(existingWeeks).sort().reverse();
-            let lastWeekPeople = [];
-            if (sortedWeeks.length > 0) {
-                lastWeekPeople = existingWeeks[sortedWeeks[0]].people || [];
+            // Logic tạo tuần ảo (tránh lỗi nếu data rỗng)
+            if (!allData[currentWeekId]) allData[currentWeekId] = { people: [], meals: [] };
+            
+            // Tính toán tuần trước/sau để tránh lỗi
+            let lastWeekDate = new Date();
+            lastWeekDate.setDate(lastWeekDate.getDate() - 7);
+            const lastWeekId = getWeekId(lastWeekDate);
+            if (!allData[lastWeekId]) allData[lastWeekId] = { people: [], meals: [] };
+            
+            let nextWeekDate = new Date();
+            nextWeekDate.setDate(nextWeekDate.getDate() + 7);
+            const nextWeekId = getWeekId(nextWeekDate);
+            if (!allData[nextWeekId]) allData[nextWeekId] = { people: [], meals: [] };
+
+            // Logic COPY người từ tuần cũ sang tuần mới (Tháng 12)
+            if (!existingWeeks[currentWeekId]) { 
+                const sortedWeeks = Object.keys(existingWeeks).sort().reverse();
+                let lastWeekPeople = [];
+                // Kiểm tra kỹ xem tuần cũ có tồn tại và có 'people' không
+                if (sortedWeeks.length > 0 && existingWeeks[sortedWeeks[0]]) {
+                    lastWeekPeople = existingWeeks[sortedWeeks[0]].people || [];
+                }
+                allData[currentWeekId].people = lastWeekPeople;
+                // Lưu ngay tuần mới lên Firebase để giữ chỗ
+                database.ref(`weeks/${currentWeekId}`).set(allData[currentWeekId]);
             }
-            allData[currentWeekId].people = lastWeekPeople;
-            database.ref(`weeks/${currentWeekId}`).set(allData[currentWeekId]);
-        }
-        
-        loadWeekData(currentWeekId);
-        
-        const today = new Date().toISOString().split('T')[0];
-        const sortedWeekIds = Object.keys(existingWeeks).sort(); 
-        const oldestWeek = sortedWeekIds.length > 0 ? sortedWeekIds[0] : today;
+            
+            loadWeekData(currentWeekId);
+            
+            // Đặt ngày cho bộ lọc
+            const today = new Date().toISOString().split('T')[0];
+            const sortedWeekIds = Object.keys(existingWeeks).sort(); 
+            const oldestWeek = sortedWeekIds.length > 0 ? sortedWeekIds[0] : today;
 
-        document.getElementById('startDate').value = oldestWeek;
-        document.getElementById('endDate').value = today;
-    });
+            const startEl = document.getElementById('startDate');
+            const endEl = document.getElementById('endDate');
+            if(startEl) startEl.value = oldestWeek;
+            if(endEl) endEl.value = today;
+
+        }, (error) => {
+            console.error("Lỗi Firebase:", error);
+            alert("Không thể tải dữ liệu: " + error.message);
+        });
+    } catch (e) {
+        console.error("Critical Error in Init:", e);
+        alert("Có lỗi nghiêm trọng khi khởi động: " + e.message);
+    }
 }
 
 window.onload = init;
-
