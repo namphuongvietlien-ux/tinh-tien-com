@@ -18,6 +18,19 @@
 
         <h1>📝 Quản Lý Tiền Cơm Trưa</h1>
 
+        <!-- Modal chọn người từ tuần trước -->
+        <div id="selectPeopleModal" class="modal" style="display: none;" onclick="if(event.target === this) skipPeopleSelection()">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <h2>📋 Chọn người từ tuần trước</h2>
+                <p>Chọn những người bạn muốn giữ lại từ tuần trước, hoặc bỏ qua để tạo danh sách mới:</p>
+                <div id="previousWeekPeopleList" class="people-checkbox-list"></div>
+                <div class="modal-buttons">
+                    <button onclick="confirmPeopleSelection()" class="btn-primary">Xác nhận</button>
+                    <button onclick="skipPeopleSelection()" class="btn-secondary">Bỏ qua (Tạo mới)</button>
+                </div>
+            </div>
+        </div>
+
         <div class="card" id="addPersonCard">
             <h2>👤 Thêm người (cho tuần này)</h2>
             <div class="form-group">

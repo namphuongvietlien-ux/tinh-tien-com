@@ -41,7 +41,20 @@ let meals = [];
 let currentGrandTotal = 0; 
 
 let currentWeekListener = null; 
-let currentWeekRef = null; 
+let currentWeekRef = null;
+
+// ==== HÀM CHUẨN HÓA TÊN ====
+function normalizeName(name) {
+    const normalizationMap = {
+        "a tuân": "A Tuân", "phương": "Phương", "phụng": "Phương", 
+        "phung": "Phương", "nguyên": "Nguyên", "c trúc": "C Trúc", 
+        "trúc": "C Trúc", "c thuỷ": "C Thuỷ", "c thuý": "C Thuý"
+    };
+    if (!name) return 'Không tên';
+    let normalizedName = name.trim();
+    let nameLower = normalizedName.toLowerCase();
+    return normalizationMap[nameLower] || normalizedName;
+}
 
 // ==== HÀM LẤY ID TUẦN (Chuẩn ISO) ====
 function getWeekId(date) {
@@ -136,8 +149,27 @@ function loadWeekData(weekId) {
         const weekData = snapshot.val() || { people: [], meals: [] };
         
         // AN TOÀN: Luôn đảm bảo là mảng, tránh crash
-        people = weekData.people || (allData[viewingWeekId] && allData[viewingWeekId].people) || [];
-        meals = weekData.meals || (allData[viewingWeekId] && allData[viewingWeekId].meals) || [];
+        let rawPeople = weekData.people || (allData[viewingWeekId] && allData[viewingWeekId].people) || [];
+        let rawMeals = weekData.meals || (allData[viewingWeekId] && allData[viewingWeekId].meals) || [];
+        
+        // Chuẩn hóa tên người và loại bỏ trùng lặp
+        const normalizedPeopleSet = new Set();
+        rawPeople.forEach(person => {
+            normalizedPeopleSet.add(normalizeName(person));
+        });
+        people = Array.from(normalizedPeopleSet).sort();
+        
+        // Chuẩn hóa tên người trong meals
+        meals = rawMeals.map(meal => ({
+            ...meal,
+            person: normalizeName(meal.person)
+        }));
+        
+        // Nếu có thay đổi, lưu lại
+        if (JSON.stringify(rawPeople) !== JSON.stringify(people) || 
+            JSON.stringify(rawMeals) !== JSON.stringify(meals)) {
+            syncDataToFirebase();
+        }
 
         try {
             updatePeopleList();
@@ -177,8 +209,14 @@ function addPerson() {
     const name = nameInput.value.trim();
     if (!name) { alert("Vui lòng nhập tên."); return; }
     if (!people) people = [];
-    if (people.includes(name)) { alert("Người này đã tồn tại trong tuần này."); return; }
-    people.push(name);
+    const normalizedName = normalizeName(name);
+    // Kiểm tra xem tên đã chuẩn hóa đã tồn tại chưa
+    const normalizedPeople = people.map(p => normalizeName(p));
+    if (normalizedPeople.includes(normalizedName)) { 
+        alert("Người này đã tồn tại trong tuần này."); 
+        return; 
+    }
+    people.push(normalizedName);
     syncDataToFirebase(); 
     nameInput.value = '';
 }
@@ -229,7 +267,9 @@ function addFood() {
         alert("Vui lòng nhập đầy đủ và chính xác thông tin món ăn."); return;
     }
     if (!meals) meals = []; 
-    meals.push({ id: Date.now(), day, person, food, price });
+    // Chuẩn hóa tên người khi thêm món
+    const normalizedPerson = normalizeName(person);
+    meals.push({ id: Date.now(), day, person: normalizedPerson, food, price });
     syncDataToFirebase(); 
     
     foodInput.value = '';
@@ -308,15 +348,31 @@ function updateSummary() {
     if(!tbody) return;
     tbody.innerHTML = '';
     const summary = {};
+    // Tính tổng theo tên đã chuẩn hóa để gộp các tên trùng
     (meals || []).forEach(item => { 
-        if (!summary[item.person]) {
-            summary[item.person] = { count: 0, total: 0 };
+        const normalizedPerson = normalizeName(item.person);
+        if (!summary[normalizedPerson]) {
+            summary[normalizedPerson] = { count: 0, total: 0 };
         }
-        summary[item.person].count += 1;
-        summary[item.person].total += item.price;
+        summary[normalizedPerson].count += 1;
+        summary[normalizedPerson].total += item.price;
     });
+    
+    // Lấy danh sách người duy nhất (đã chuẩn hóa)
+    const uniquePeople = new Set();
+    (people || []).forEach(person => {
+        uniquePeople.add(normalizeName(person));
+    });
+    
+    // Cập nhật lại mảng people để loại bỏ trùng lặp
+    const deduplicatedPeople = Array.from(uniquePeople).sort();
+    if (JSON.stringify(people) !== JSON.stringify(deduplicatedPeople)) {
+        people = deduplicatedPeople;
+        syncDataToFirebase();
+    }
+    
     let grandTotal = 0;
-    (people || []).forEach(person => { 
+    deduplicatedPeople.forEach(person => { 
         const row = document.createElement("tr");
         const count = summary[person]?.count || 0;
         const total = summary[person]?.total || 0;
@@ -361,17 +417,7 @@ function generateRangeSummary() {
         let rangeGrandTotal = 0;
         const allPeopleSet = new Set();
         
-        const normalizeName = (name) => {
-            const normalizationMap = {
-                "a tuân": "A Tuân", "phương": "Phương", "phụng": "Phương", 
-                "phung": "Phương", "nguyên": "Nguyên", "c trúc": "C Trúc", 
-                "trúc": "C Trúc", "c thuỷ": "C Thuỷ", "c thuý": "C Thuý"
-            };
-            if (!name) return 'Không tên';
-            let normalizedName = name.trim();
-            let nameLower = normalizedName.toLowerCase();
-            return normalizationMap[nameLower] || normalizedName;
-        };
+        // Sử dụng hàm normalizeName toàn cục
 
         if (allData) {
             Object.values(allData).forEach(week => {
@@ -458,6 +504,82 @@ function clearSelectedWeekData() {
     }
 }
 
+// ==== HIỂN THỊ MODAL CHỌN NGƯỜI TỪ TUẦN TRƯỚC ====
+function showPeopleSelectionModal(previousWeekPeople) {
+    const modal = document.getElementById("selectPeopleModal");
+    const listContainer = document.getElementById("previousWeekPeopleList");
+    
+    if (!modal || !listContainer) return;
+    
+    listContainer.innerHTML = '';
+    
+    if (!previousWeekPeople || previousWeekPeople.length === 0) {
+        listContainer.innerHTML = '<p style="color: #999; font-style: italic;">Không có danh sách từ tuần trước.</p>';
+    } else {
+        // Loại bỏ trùng lặp và chuẩn hóa tên
+        const uniquePeople = [];
+        const seen = new Set();
+        previousWeekPeople.forEach(person => {
+            const normalized = normalizeName(person);
+            if (!seen.has(normalized)) {
+                seen.add(normalized);
+                uniquePeople.push(normalized);
+            }
+        });
+        
+        uniquePeople.forEach(person => {
+            const label = document.createElement("label");
+            label.style.display = "block";
+            label.innerHTML = `
+                <input type="checkbox" value="${person}" checked>
+                <span>${person}</span>
+            `;
+            listContainer.appendChild(label);
+        });
+    }
+    
+    modal.style.display = "block";
+}
+
+// ==== XÁC NHẬN CHỌN NGƯỜI TỪ TUẦN TRƯỚC ====
+function confirmPeopleSelection() {
+    const modal = document.getElementById("selectPeopleModal");
+    const checkboxes = document.querySelectorAll("#previousWeekPeopleList input[type='checkbox']:checked");
+    
+    const selectedPeople = Array.from(checkboxes).map(cb => cb.value);
+    
+    // Chuẩn hóa và loại bỏ trùng lặp
+    const normalizedPeople = [];
+    const seen = new Set();
+    selectedPeople.forEach(person => {
+        const normalized = normalizeName(person);
+        if (!seen.has(normalized)) {
+            seen.add(normalized);
+            normalizedPeople.push(normalized);
+        }
+    });
+    
+    people = normalizedPeople;
+    syncDataToFirebase();
+    
+    if (modal) modal.style.display = "none";
+    
+    // Cập nhật UI
+    updatePeopleList();
+    updatePersonSelect();
+}
+
+// ==== BỎ QUA CHỌN NGƯỜI (TẠO MỚI) ====
+function skipPeopleSelection() {
+    const modal = document.getElementById("selectPeopleModal");
+    if (modal) modal.style.display = "none";
+    // Giữ people = [] (danh sách mới)
+    people = [];
+    syncDataToFirebase();
+    updatePeopleList();
+    updatePersonSelect();
+}
+
 // ==== KHỞI ĐỘNG (AN TOÀN) ====
 function init() {
     try {
@@ -491,15 +613,23 @@ function init() {
             const nextWeekId = getWeekId(nextWeekDate);
             if (!allData[nextWeekId]) allData[nextWeekId] = { people: [], meals: [] };
 
-            // Logic COPY người từ tuần cũ sang tuần mới (Tháng 12)
-            if (!existingWeeks[currentWeekId]) { 
+            // Logic hiển thị modal chọn người từ tuần cũ khi tạo tuần mới
+            if (!existingWeeks[currentWeekId] || (existingWeeks[currentWeekId].people && existingWeeks[currentWeekId].people.length === 0)) { 
                 const sortedWeeks = Object.keys(existingWeeks).sort().reverse();
                 let lastWeekPeople = [];
                 // Kiểm tra kỹ xem tuần cũ có tồn tại và có 'people' không
                 if (sortedWeeks.length > 0 && existingWeeks[sortedWeeks[0]]) {
                     lastWeekPeople = existingWeeks[sortedWeeks[0]].people || [];
                 }
-                allData[currentWeekId].people = lastWeekPeople;
+                
+                // Nếu có danh sách từ tuần trước, hiển thị modal để chọn
+                if (lastWeekPeople.length > 0) {
+                    showPeopleSelectionModal(lastWeekPeople);
+                } else {
+                    // Không có tuần trước, tạo danh sách mới
+                    people = [];
+                }
+                
                 // Lưu ngay tuần mới lên Firebase để giữ chỗ
                 database.ref(`weeks/${currentWeekId}`).set(allData[currentWeekId]);
             }
